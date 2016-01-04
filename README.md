@@ -253,3 +253,9 @@ Note that GenMatchedRecoObjectProducer is a template class, with (so far) 3 impl
 * GenMatchedMuonProducer: recoObjTag must refer to a reco::MuonRefVector
 * GenMatchedJetProducer: recoObjTag must refer to a reco::PFJetRefVector
 * GenMatchedTauProducer: recoObjTag must refer to a reco::PFTauRefVector
+
+## Hadronic tau decays
+
+The algorithm coded in GenTauDecayID recursively counts the number of status 1 charged pions, status 1 charged kaons, and status 2 neutral pions in the decay of a tau to determine the hadronic decay mode and the visible 4-vector.  So, all intermediate neutrals are decayed to pions and kaons before performing the final count.
+
+Klongs and Kshorts, which are status 1 in Pythia 8, are ignored in the determination of decay mode.  Decays via these particles account for 2% of tau decays and would be not be reconstructed as a valid gen tau decay in this scheme.  The HPS tau reconstruction algorithm is not designed to reconstruct decays via Klongs and Kshorts.
