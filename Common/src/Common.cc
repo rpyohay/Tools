@@ -689,7 +689,7 @@ Common::getStatus3Key(const edm::Handle<reco::GenParticleRefVector>& pSelectedGe
   reco::GenParticleRef genParticleRef = pSelectedGenParticles->at(i);
   unsigned int key = genParticleRef.key();
   if (genParticleRef->status() == 1) {
-    key = reco::GenParticleRef(pGenParticles, key)->motherRef().key();
+    key = reco::GenParticleRef(pGenParticles, key)->motherRef()->motherRef().key();
   }
   return key;
 }

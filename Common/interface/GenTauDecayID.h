@@ -1,5 +1,5 @@
-#ifndef Tools_Common_interface_GenTauDecayID_h
-#define Tools_Common_interface_GenTauDecayID_h
+#ifndef BoostedTauAnalysis_Common_interface_GenTauDecayID_h
+#define BoostedTauAnalysis_Common_interface_GenTauDecayID_h
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
@@ -101,11 +101,15 @@ class GenTauDecayID {
   //find sister
   void findSister();
 
-  //is tau a status 3 decay product?
-  bool tauIsStatus3DecayProduct() const;
+  //is tau a status 2 decay product?
+  bool tauIsStatus2DecayProduct() const;
 
-  //is particle a status 3 decay product, optionally only consider particles with given PDG ID
-  bool isStatus3DecayProduct(const int PDGID = 0) const;
+  /*is particle a status 2 decay product (if tau), optionally only consider particles with given 
+    PDG ID*/
+  bool isStatus2DecayProduct(const int PDGID = 0) const;
+
+  //does particle have the right mother, optionally only consider particles with given PDG ID
+  bool hasRightMother(const int PDGID = 0) const;
 
   //get tau decay type
   DecayType tauDecayType() const;
