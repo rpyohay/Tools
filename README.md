@@ -219,7 +219,7 @@ process.recoMuonSelector = cms.EDFilter('MuonRefSelector',
 The gen matching can be done via the following snippet:
 
 ```python
-process.genAMuMatchedRecoMuonSelector = cms.EDFilter(
+process.genATauMuMatchedRecoMuonSelector = cms.EDFilter(
     'GenMatchedMuonProducer',
     genParticleTag = cms.InputTag('genParticles'),
     selectedGenParticleTag = cms.InputTag('genATauMuSelector'), #must be a reco::GenParticleRefVector
@@ -234,6 +234,17 @@ process.genAMuMatchedRecoMuonSelector = cms.EDFilter(
     nOutputColls = cms.uint32(1),         #should always be 1
     dR = cms.double(0.1),                 #dR criteria for matching
     minNumGenObjectsToPassFilter = cms.uint32(1) #EDFilter returns true if >=1 gen-matched reco muon is found
+    )
+```
+
+The CMSSW Path object would then be:
+
+```python
+process.p = cms.Path(
+    process.genATauMuSelector*
+    process.recoMuonSelector*
+    process.genATauMuMatchedRecoMuonSelector*
+    process.myGenMatchedRecoMuonAnalyzer
     )
 ```
 
