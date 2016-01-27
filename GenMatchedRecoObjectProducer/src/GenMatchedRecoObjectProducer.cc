@@ -4,7 +4,7 @@
 // Class:      GenMatchedRecoObjectProducer
 // 
 /**\class GenMatchedRecoObjectProducer GenMatchedRecoObjectProducer.cc 
-   BoostedTauAnalysis/GenMatchedRecoObjectProducer/src/GenMatchedRecoObjectProducer.cc
+   Tools/GenMatchedRecoObjectProducer/src/GenMatchedRecoObjectProducer.cc
 
 Description: produce a collection of reco objects matched to gen boosted di-tau objects
 
@@ -84,18 +84,6 @@ private:
   //flag indicating whether KShorts should be counted as neutral hadrons
   bool countKShort_;
 
-  //pT rank of the matched reco object in the event
-  int pTRank_;
-
-  //flag indicating whether all collections should be produced or just 1
-  bool makeAllCollections_;
-
-  //flag indicating whether pT rank should be assessed against reco object or matching gen object
-  bool useGenObjPTRank_;
-
-  //number of output collections in the makeAllCollections_ = true case
-  unsigned int nOutputColls_;
-
   //dR matching cut
   double dR_;
 
@@ -124,23 +112,12 @@ GenMatchedRecoObjectProducer<T>::GenMatchedRecoObjectProducer(const edm::Paramet
   genTauDecayIDPSet_(iConfig.getParameter<edm::ParameterSet>("genTauDecayIDPSet")),
   applyPTCuts_(iConfig.getParameter<bool>("applyPTCuts")),
   countKShort_(iConfig.getParameter<bool>("countKShort")),
-  pTRank_(iConfig.getParameter<int>("pTRank")),
-  makeAllCollections_(iConfig.getParameter<bool>("makeAllCollections")),
-  useGenObjPTRank_(iConfig.getParameter<bool>("useGenObjPTRank")),
-  nOutputColls_(iConfig.getParameter<unsigned int>("nOutputColls")),
   dR_(iConfig.getParameter<double>("dR")),
   minNumGenObjectsToPassFilter_
   (iConfig.getParameter<unsigned int>("minNumGenObjectsToPassFilter"))
 {
   //register your products
-  if (makeAllCollections_) {
-    for (unsigned int i = 0; i < nOutputColls_; ++i) {
-      std::stringstream instance;
-      instance << "coll" << i;
-      produces<edm::RefVector<std::vector<T> > >(instance.str());
-    }
-  }
-  else produces<edm::RefVector<std::vector<T> > >();
+  produces<edm::RefVector<std::vector<T> > >();
 
   //now do what ever other initialization is needed
   
@@ -188,12 +165,6 @@ bool GenMatchedRecoObjectProducer<T>::filter(edm::Event& iEvent, const edm::Even
     recoObjPtrs.push_back(const_cast<T*>(iRecoObj->get()));
   }
 
-  //make a copy of the reco object vector
-  std::vector<T*> recoObjPtrsCopy = recoObjPtrs;
-
-  //sort the reco objects in the copied vector by ascending order by pT in the copied vector
-  Common::sortByPT(recoObjPtrsCopy);
-
   //fill STL container of selected gen objects
   std::vector<GenTauDecayID> selectedGenObjs;
   for (unsigned int iGenParticle = 0; iGenParticle < pSelectedGenParticles->size(); 
@@ -227,23 +198,11 @@ bool GenMatchedRecoObjectProducer<T>::filter(edm::Event& iEvent, const edm::Even
     catch (std::string& ex) { throw cms::Exception("GenObjectProducer") << ex; }
   }
 
-  //sort the gen objects in ascending order by visible pT
-  Common::sortByPT(selectedGenObjs);
+  //declare pointer to output collection to produce
+  std::auto_ptr<edm::RefVector<std::vector<T> > > 
+    genMatchedRecoObjs(new edm::RefVector<std::vector<T> >);
 
-  //set the pT rank of the a decay product (highest rank is 0, next highest is 1, etc.)
-  for (std::vector<GenTauDecayID>::iterator iGenObj = selectedGenObjs.begin(); 
-       iGenObj != selectedGenObjs.end(); ++iGenObj) {
-    iGenObj->setPTRank(selectedGenObjs.end() - iGenObj - 1);
-  }
-
-  //declare pointers to output collection to produce
-  std::vector<std::auto_ptr<edm::RefVector<std::vector<T> > > > genMatchedRecoObjs;
-  for (unsigned int i = 0; i < nOutputColls_; ++i) {
-    genMatchedRecoObjs.push_back(std::auto_ptr<edm::RefVector<std::vector<T> > >
-				 (new edm::RefVector<std::vector<T> >));
-  }
-
-  //debug
+  // //debug
   std::vector<edm::Ref<std::vector<T> > > recoObjsToSave;
 
   //loop over selected gen particles
@@ -257,109 +216,22 @@ bool GenMatchedRecoObjectProducer<T>::filter(edm::Event& iEvent, const edm::Even
     edm::Ref<std::vector<reco::LeafCandidate> > visibleGenParticleRef(&visibleGenParticle, 0);
 
     //find the nearest reco object to the gen particle
-    int nearestRecoObjPTRank = -1; /*this is the index into recoObjPtrsCopy of the nearest object
-				     since recoObjPtrsCopy is sorted in ascending order by pT, the 
-				     pT rank of the nearest object is recoObjPtrsCopy.size() - 
-				     nearestRecoObjPTRank - 1*/
-    const T* nearestRecoObj = 
-      Common::nearestObject(visibleGenParticleRef, recoObjPtrsCopy, nearestRecoObjPTRank);
-    if (nearestRecoObjPTRank != -1) {
-      nearestRecoObjPTRank = recoObjPtrsCopy.size() - nearestRecoObjPTRank - 1;
-    }
-
-    /*still need the index into the original collection pRecoObjs of the nearest object, so repeat 
-      call to nearestObject, but with original recoObjPtrs vector
-      ideally when sorting the vector in the first place we'd save the original object keys*/
     int nearestRecoObjKey = -1;
-    nearestRecoObj = Common::nearestObject(visibleGenParticleRef, recoObjPtrs, nearestRecoObjKey);
+    const T* nearestRecoObj = 
+      Common::nearestObject(visibleGenParticleRef, recoObjPtrs, nearestRecoObjKey);
 
-    //if nearest reco object is within dR_ of the gen object... 
-//     bool save = false;
-    if ((nearestRecoObj != NULL) && (nearestRecoObjPTRank >= 0) && 
-	(reco::deltaR(*nearestRecoObj, *visibleGenParticleRef) < dR_)) {
-      int matchedGenObjPTRank = (int)iGenObj->getPTRank();
-
-      /*...and in the case of makeAllCollections_ = true has a pT rank higher than or equal to the 
-	max supported, ...*/
-      if (makeAllCollections_) {
-
-// 	if ((useGenObjPTRank_ && /*debug*//*(matchedGenObjPTRank < nOutputColls_)*/true) || 
-// 	    (!useGenObjPTRank_ && 
-// 	     /*debug*//*(nearestRecoObjPTRank < (int)nOutputColls_)*/true)) save = true;
-
-	//debug
-	/*nearestRecoObjKey is the index into recoObjPtrs of the matched object
-	  recoObjPtrs is in the same order as pRecoObjs
-	  the element of pRecoObjs with index nearestRecoObjKey is the ref of the matched object
-	  its key MUST BE the index into the original collection pBaseRecoObjs (or this fails)
-	  so, a ref to the original collection is saved*/
-	recoObjsToSave.
+    //if nearest reco object is within dR_ of the gen object, save
+    if ((nearestRecoObj != NULL) && (reco::deltaR(*nearestRecoObj, *visibleGenParticleRef) < dR_)) {
+	genMatchedRecoObjs->
 	  push_back(edm::Ref<std::vector<T> >(pBaseRecoObjs, 
 					      pRecoObjs->at(nearestRecoObjKey).key()));
-      }
-
-      //or in the case of makeAllCollections_ = false, the pTRank is the one wanted, ...
-      else if ((pTRank_ == GenTauDecayID::ANY_PT_RANK) || 
-	       (useGenObjPTRank_ && (matchedGenObjPTRank == pTRank_)) || 
-	       (!useGenObjPTRank_ && (nearestRecoObjPTRank == pTRank_))) {
-// 	save = true;
-	nearestRecoObjPTRank = 0; /*since only 1 output collection is produced in this case, the 
-				    index into genMatchedRecoObjs should be 0*/
-
-	//debug
-	genMatchedRecoObjs[nearestRecoObjPTRank]->
-	  push_back(edm::Ref<std::vector<T> >(pBaseRecoObjs, 
-					      pRecoObjs->at(nearestRecoObjKey).key()));
-      }
-    }
-
-//     //comment out following when debugging
-//     //...save this reco object
-//     if (save) {
-//       genMatchedRecoObjs[nearestRecoObjPTRank]->
-// 	push_back(edm::Ref<std::vector<T> >(pBaseRecoObjs, 
-// 					    pRecoObjs->at(nearestRecoObjKey).key()));
-//     }
-  }
-
-  /*debug - here we pay no attention to the pT rank of the reco object among other reco object or 
-    the gen object among other gen objects, and just sort the passing reco objects by pT to 
-    determine their pT rank
-    for instance, if 2 reco objects passed and the leading one had pT rank 0 by the normal measure 
-    and the trailing one had pT rank 10 by the normal measure, the trailing one would be saved 
-    here as pT rank 1, instead of normally being discarded*/
-  Common::sortByPT(recoObjsToSave);
-  if (makeAllCollections_) {
-    for (unsigned int i = 0; i < nOutputColls_; ++i) {
-      if ((recoObjsToSave.size() - i - 1) < genMatchedRecoObjs.size()) {
-	genMatchedRecoObjs[i]->push_back(edm::Ref<std::vector<T> >
-					 (pBaseRecoObjs, 
-					  recoObjsToSave[recoObjsToSave.size() - i - 1].key()));
-      }
     }
   }
 
   //flag indicating whether right number of gen-matched reco objects were found
-  bool foundGenMatchedRecoObject = genMatchedRecoObjs[0]->size() >= minNumGenObjectsToPassFilter_;
+  bool foundGenMatchedRecoObject = genMatchedRecoObjs->size() >= minNumGenObjectsToPassFilter_;
 
-  if (makeAllCollections_) {
-    unsigned int iColl = 0;
-    while ((iColl < nOutputColls_) && foundGenMatchedRecoObject) {
-      foundGenMatchedRecoObject = 
-	genMatchedRecoObjs[iColl]->size() >= minNumGenObjectsToPassFilter_;
-      ++iColl;
-    }
-  }
-
-  //put output collection into event
-  if (makeAllCollections_) {
-    for (unsigned int i = 0; i < nOutputColls_; ++i) {
-      std::stringstream instance;
-      instance << "coll" << i;
-      iEvent.put(genMatchedRecoObjs[i], instance.str());
-    }
-  }
-  else iEvent.put(genMatchedRecoObjs[0]); //this function frees the auto_ptr argument
+  iEvent.put(genMatchedRecoObjs); //this function frees the auto_ptr argument
 
   //stop processing if no gen-matched objects were found
   return foundGenMatchedRecoObject;

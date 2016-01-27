@@ -228,10 +228,6 @@ process.genATauMuMatchedRecoMuonSelector = cms.EDFilter(
     genTauDecayIDPSet = ATauTauPSet,      #need to know the pseudoscalar a mother
     applyPTCuts = cms.bool(False),        #should always be false
     countKShort = cms.bool(False),        #should always be false
-    pTRank = cms.int32(ANY_PT_RANK),      #should always be ANY_PT_RANK
-    makeAllCollections = cms.bool(False), #should always be False
-    useGenObjPTRank = cms.bool(True),     #should always be True
-    nOutputColls = cms.uint32(1),         #should always be 1
     dR = cms.double(0.1),                 #dR criteria for matching
     minNumGenObjectsToPassFilter = cms.uint32(1) #EDFilter returns true if >=1 gen-matched reco muon is found
     )
