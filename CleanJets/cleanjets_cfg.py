@@ -56,7 +56,8 @@ process.combinatoricRecoTaus.jetSrc = cms.InputTag('CleanJets', 'ak4PFJetsNoMu',
 # Configuring Output
 #######################################
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('file:DIRNAME_NUM.root')
+    fileName = cms.untracked.string('file:DIRNAME_NUM.root'),
+    SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring('p')),
 )
 
 process.p = cms.Path(process.muonsRef*
