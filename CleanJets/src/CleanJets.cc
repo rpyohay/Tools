@@ -44,8 +44,8 @@
 #include "DataFormats/MuonReco/interface/MuonSelectors.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
-#include "BoostedTauAnalysis/Common/interface/Common.h"
-#include "BoostedTauAnalysis/Common/interface/GenTauDecayID.h"
+#include "Tools/Common/interface/Common.h"
+#include "Tools/Common/interface/GenTauDecayID.h"
 #include "DataFormats/Candidate/interface/Particle.h"
 #include "DataFormats/Candidate/interface/Candidate.h"
 #include "DataFormats/Candidate/interface/CandidateFwd.h"
@@ -63,7 +63,6 @@
 #include "TLorentzVector.h"
 #include "TGraphAsymmErrors.h"
 #include "TMath.h"
-#include "BoostedTauAnalysis/VariousFunctions/interface/VariousFunctions.h"
 
 using namespace edm;
 using namespace reco;
@@ -106,6 +105,7 @@ class CleanJets : public edm::EDProducer {
       TFile* out_;
       std::string outFileName_;
       edm::ParameterSet* cfg_;
+      bool debug_;
 
       //Histograms
       TH1F* NMu_;
@@ -135,6 +135,7 @@ CleanJets::CleanJets(const edm::ParameterSet& iConfig)
   PFCandSrc_ = iConfig.getParameter<edm::InputTag>("PFCandSrc");
   outFileName_ = iConfig.getParameter<std::string>("outFileName");
   cfg_ = const_cast<edm::ParameterSet*>(&iConfig);
+  debug_ = false; //set to true if you want to draw validation histograms
 
   //register your products
   produces<PFJetCollection>( "ak4PFJetsNoMu" );
@@ -163,7 +164,6 @@ CleanJets::~CleanJets()
 void
 CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-
    Handle<PFJetCollection> PFJets;
    iEvent.getByLabel(jetSrc_, PFJets);
    auto_ptr<PFJetCollection> SetOfJets( new PFJetCollection );
@@ -346,44 +346,56 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 void 
 CleanJets::beginJob()
 {
-  out_ = new TFile(outFileName_.c_str(), "RECREATE");
+  if (debug_) out_ = new TFile(outFileName_.c_str(), "RECREATE");
 
-  NMu_= new TH1F("NMu", "", 7, -.5, 6.5);
-  MuEnergy_= new TH1F("MuEnergy", "", 50, -.5, 50);
-  DiffJetEvsMuonE_ = new TH2F("DiffJetEvsMuonE", "", 50, 0, 50, 50, 0, 50);
-  JetEtavsMuEta_ = new TH2F("JetEtavsMuEta", "", 20, -5, 5, 20, -5, 5);
-  JetConstBeforevsAfter_ = new TH2F("JetConstBeforevsAfter", "", 20, 0, 20, 20, 0, 20);
-  DiffConstituents_= new TH1F("DiffConstituents", "", 8, -1.5, 6.5);
+  NMu_= new TH1F("NMu", ";Number of muons;", 7, -.5, 6.5);
+  MuEnergy_= new TH1F("MuEnergy", ";Muon p_{T} (GeV);", 50, -.5, 50);
+  DiffJetEvsMuonE_ = new TH2F("DiffJetEvsMuonE", 
+			      ";E_{uncleaned jet} - E_{cleaned jet} (GeV);E_{#mu} (GeV)", 
+			      50, 0, 50, 50, 0, 50);
+  JetEtavsMuEta_ = new TH2F("JetEtavsMuEta", ";#eta_{jet};#eta_{#mu}", 20, -5, 5, 20, -5, 5);
+  JetConstBeforevsAfter_ = 
+    new TH2F("JetConstBeforevsAfter", 
+	     ";No. uncleaned jet constituents;No. cleaned jet constituents", 20, 0, 20, 20, 0, 20);
+  DiffConstituents_= new TH1F("DiffConstituents", ";N_{const}(uncleaned) - N_{const}(cleaned);", 
+			      8, -1.5, 6.5);
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
 CleanJets::endJob()
 {
-  out_->cd();
 
-  TCanvas NMuCanvas_("NMuCanvas","",600,600);
-  TCanvas MuEnergyCanvas_("MuEnergyCanvas","",600,600);
-  TCanvas DiffJetEvsMuonECanvas_("DiffJetEvsMuonECanvas","",600,600);
-  TCanvas JetEtavsMuEtaCanvas_("JetEtavsMuEtaCanvas","",600,600);
-  TCanvas JetConstBeforevsAfterCanvas_("JetConstBeforevsAfterCanvas","",600,600);
-  TCanvas DiffConstituentsCanvas_("DiffConstituentsCanvas","",600,600);
+  if (debug_) {
 
-  VariousFunctions::formatAndDrawCanvasAndHist1D(NMuCanvas_, NMu_, 1, 0, 0, kBlack, 7, 20, "Number of Muons", .04, .04, 1.1,  "", .04, .04, 1.0, false);
-  VariousFunctions::formatAndDrawCanvasAndHist1D(MuEnergyCanvas_, MuEnergy_, 1, 0, 0, kBlack, 7, 20, "pt(#mu) of NonIsoTrig", .04, .04, 1.1,  "", .04, .04, 1.0, false);
-  VariousFunctions::formatAndDrawCanvasAndHist2D(DiffJetEvsMuonECanvas_, DiffJetEvsMuonE_, 0, 0, 0, kBlack, 7, 20, "Difference in jet E", .04, .04, 1.1, "#mu Energy", .04, .04, 1.6, "", .04, .04, 1.0);
-  VariousFunctions::formatAndDrawCanvasAndHist2D(JetEtavsMuEtaCanvas_, JetEtavsMuEta_, 0, 0, 0, kBlack, 7, 20, "#eta(jet)", .04, .04, 1.1, "#eta(#mu)", .04, .04, 1.6, "", .04, .04, 1.0);
-  VariousFunctions::formatAndDrawCanvasAndHist2D(JetConstBeforevsAfterCanvas_, JetConstBeforevsAfter_, 0, 0, 0, kBlack, 7, 20, "nConstituents Before", .04, .04, 1.1, "nConstituents After", .04, .04, 1.6, "", .04, .04, 1.0);
-  VariousFunctions::formatAndDrawCanvasAndHist1D(DiffConstituentsCanvas_, DiffConstituents_, 1, 0, 0, kBlack, 7, 20, "Difference of Constituents", .04, .04, 1.1,  "", .04, .04, 1.0, false);
+    out_->cd();
 
-  NMuCanvas_.Write();
-  MuEnergyCanvas_.Write();
-  DiffJetEvsMuonECanvas_.Write();
-  JetEtavsMuEtaCanvas_.Write();
-  JetConstBeforevsAfterCanvas_.Write();
-  DiffConstituentsCanvas_.Write();
-  out_->Write();
-  out_->Close();
+    TCanvas NMuCanvas_("NMuCanvas","",600,600);
+    TCanvas MuEnergyCanvas_("MuEnergyCanvas","",600,600);
+    TCanvas DiffJetEvsMuonECanvas_("DiffJetEvsMuonECanvas","",600,600);
+    TCanvas JetEtavsMuEtaCanvas_("JetEtavsMuEtaCanvas","",600,600);
+    TCanvas JetConstBeforevsAfterCanvas_("JetConstBeforevsAfterCanvas","",600,600);
+    TCanvas DiffConstituentsCanvas_("DiffConstituentsCanvas","",600,600);
+
+    Common::draw1DHistograms(NMuCanvas_, NMu_);
+    Common::draw1DHistograms(MuEnergyCanvas_, MuEnergy_);
+    Common::draw1DHistograms(DiffConstituentsCanvas_, DiffConstituents_);
+
+    Common::draw2DHistograms(DiffJetEvsMuonECanvas_, DiffJetEvsMuonE_);
+    Common::draw2DHistograms(JetEtavsMuEtaCanvas_, JetEtavsMuEta_);
+    Common::draw2DHistograms(JetConstBeforevsAfterCanvas_, JetConstBeforevsAfter_);
+
+    NMuCanvas_.Write();
+    MuEnergyCanvas_.Write();
+    DiffJetEvsMuonECanvas_.Write();
+    JetEtavsMuEtaCanvas_.Write();
+    JetConstBeforevsAfterCanvas_.Write();
+    DiffConstituentsCanvas_.Write();
+    out_->Write();
+    out_->Close();
+
+  }
+
 }
 
 // ------------ method called when starting to processes a run  ------------
