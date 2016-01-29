@@ -1,12 +1,22 @@
 import FWCore.ParameterSet.Config as cms
 
+
+#########################################################
+# this will produce a ref to the original muon collection
+#########################################################
+muonsRef = cms.EDFilter('MuonRefSelector',
+                   src = cms.InputTag('muons'),
+                   cut = cms.string('pt > 0.0'),
+                   filter = cms.bool(True)
+)
+
+#############################
+# Clean Jets Definition
+##############################
 CleanJets = cms.EDProducer(
     'CleanJets',
-    jetSrc = cms.InputTag("ak5PFJets"),
-    outFileName = cms.string('/data1/friccita/NMSSMSignalWH_MuProperties.root'),
-    momPDGID = cms.uint32(36),
-    genMuTauPTMin = cms.double(0.0), #GeV
-    genMuPTMin = cms.double(20.0), #GeV                           
-    cutOnGenMatches = cms.bool(True),
-    thisTag = cms.InputTag('CleanJets', 'ak5PFJetsNoMu', 'ANALYSIS')
-    )
+    jetSrc = cms.InputTag("ak4PFJets"),
+    muonSrc = cms.InputTag("muonsRef"),
+    PFCandSrc = cms.InputTag("pfIsolatedMuonsEI"),
+    outFileName = cms.string('file:/afs/cern.ch/user/k/ktos/NMSSM_Analysis/CMSSW_7_4_12_patch4/src/Tools/CleanJets/BSUB/DIRNAME/CleanJets_Plots.root')
+)
