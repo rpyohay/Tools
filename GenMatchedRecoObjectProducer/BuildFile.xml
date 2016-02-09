@@ -6,4 +6,6 @@
 <use name="Tools/Common"/>
 <use name="JetMETCorrections/Objects"/>
 <use name="DataFormats/ParticleFlowCandidate"/>
+<use name="FWCore/ServiceRegistry"/>
+<use name="CommonTools/UtilAlgos"/>
 <flags EDM_PLUGIN="1"/>
