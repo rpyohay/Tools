@@ -140,7 +140,7 @@ CleanJets::CleanJets(const edm::ParameterSet& iConfig)
 
   //register your products
   produces<PFJetCollection>( "ak4PFJetsNoMu" );
-  produces<edm::ValueMap<bool> >( );
+  produces<edm::ValueMap<bool> >("valMap" );
   produces<edm::ValueMap<MuonRefVector> >( );
   produces<edm::ValueMap<PFJetRef> >( );
   produces<PFCandidateCollection>();
@@ -283,7 +283,6 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
        NMu_->Fill(PFCandMuons );
        if (taggedMuonForRemoval)
        {
-         std::cout<<"Bingo, taggedMuonForRemoval is non zero !"<<std::endl;
          JetConstBeforevsAfter_->Fill(nConstBefore, jetConstituents.size());
          DiffJetEvsMuonE_->Fill(jetEBefore - muonfreePFJet.energy(), muE );
          JetEtavsMuEta_->Fill(iJet->eta(), muEta );
@@ -294,7 +293,7 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
          //std::cout << "\tMuEta= " << muEta << " \tetiJet->eta()= " << iJet->eta() << std::endl;
          DiffConstituents_->Fill( nConstBefore - jetConstituents.size());
        }
-
+   std::cout<<"this jet has a muon?"<<taggedMuonForRemoval<<std::endl;
    } // loop over jets
    
    //fill an STL container of keys of removed muons
@@ -327,8 +326,7 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
    edm::ValueMap<bool>::Filler filler(*valMap);
    filler.insert(cleanedJetsRefProd, muonTagDecisions.begin(), muonTagDecisions.end());
    filler.fill();
-   iEvent.put(valMap);
-   std::cout<<"valMap"<<&valMap<<std::endl;
+   iEvent.put(valMap, "valMap");
    //fill the value map of removed muon refs for each cleaned jet
    std::auto_ptr<edm::ValueMap<MuonRefVector> > muonValMap(new edm::ValueMap<MuonRefVector>());
    edm::ValueMap<MuonRefVector>::Filler muonFiller(*muonValMap);
@@ -351,6 +349,7 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 void 
 CleanJets::beginJob()
 {
+  std::cout<<"*******************************"<<std::endl;
   if (debug_) out_ = new TFile(outFileName_.c_str(), "RECREATE");
 
   NMu_= new TH1F("NMu", ";Number of muons;", 7, -.5, 6.5);

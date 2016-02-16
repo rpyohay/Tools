@@ -305,14 +305,15 @@ Common::getSoftRecoMuons(const edm::Handle<reco::MuonCollection>& pMuons, const 
   for (reco::MuonCollection::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end(); 
        ++iMuon) {
     const reco::TrackRef innerTrack = iMuon->innerTrack();
-    const reco::Vertex::Point PVPos = pPV->position();
-    if (muon::isGoodMuon(*iMuon, muon::TMOneStationTight) && 
+    //const reco::Vertex::Point PVPos = pPV->position();
+    if(muon::isSoftMuon(*iMuon,*pPV)&&((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))
+ /*   if (muon::isGoodMuon(*iMuon, muon::TMOneStationTight) && 
 	(iMuon->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
 	(innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) && 
 	(innerTrack->normalizedChi2() < 1.8) && 
 	(fabs(innerTrack->dxy(PVPos)) < 3.0) && 
 	(fabs(innerTrack->dz(PVPos)) < 30.0) && 
-	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax))) {
+	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))*/ {
       softMuons.push_back(reco::MuonRef(pMuons, iMuon - pMuons->begin()));
     }
   }
@@ -329,14 +330,15 @@ Common::getSoftRecoMuons(const edm::Handle<reco::MuonRefVector>& pMuons,
        ++iMuon) {
     const reco::TrackRef innerTrack = (*iMuon)->innerTrack();
     if (pPV != NULL) {
-      const reco::Vertex::Point PVPos = pPV->position();
-      if (muon::isGoodMuon(**iMuon, muon::TMOneStationTight) && 
+      if(muon::isSoftMuon(**iMuon, *pPV)&&((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax)))
+      //const reco::Vertex::Point PVPos = pPV->position();
+      /*if (muon::isGoodMuon(**iMuon, muon::TMOneStationTight) && 
 	  ((*iMuon)->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
 	  (innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) && 
 	  (innerTrack->normalizedChi2() < 1.8) && 
 	  (fabs(innerTrack->dxy(PVPos)) < 3.0) && 
 	  (fabs(innerTrack->dz(PVPos)) < 30.0) && 
-	  ((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax))) {
+	  ((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax)))*/ {
 	softMuons.push_back(reco::MuonRef(pBaseMuons, iMuon->key()));
       }
     }
@@ -351,7 +353,8 @@ Common::getSoftRecoMuonsFromPV(const edm::Handle<reco::MuonCollection>& pMuons,
   std::vector<reco::MuonRef> softMuons;
   for (reco::MuonCollection::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end(); 
        ++iMuon) {
-    const reco::TrackRef innerTrack = iMuon->innerTrack();
+    if(muon::isSoftMuon(*iMuon, *pPV)&&((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))
+  /*  const reco::TrackRef innerTrack = iMuon->innerTrack();
     const reco::Vertex::Point PVPos = pPV->position();
     if (muon::isGoodMuon(*iMuon, muon::TMOneStationTight) && 
 	(iMuon->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
@@ -359,7 +362,7 @@ Common::getSoftRecoMuonsFromPV(const edm::Handle<reco::MuonCollection>& pMuons,
 	(innerTrack->normalizedChi2() < 1.8) && 
 	(fabs(innerTrack->dxy(PVPos)) < 3.0) && 
 	(fabs(innerTrack->dz(PVPos)) < 0.5) && 
-	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax))) {
+	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))*/ {
       softMuons.push_back(reco::MuonRef(pMuons, iMuon - pMuons->begin()));
     }
   }
@@ -705,10 +708,10 @@ Common::getTightIsolatedRecoMuons(const edm::Handle<reco::MuonCollection>& pMuon
        ++iMuon) {
     if ((pPV != NULL) && 
 	muon::isTightMuon(*iMuon, *pPV) && 
-	iMuon->isPFMuon() && 
+	/*iMuon->isPFMuon() && 
 	(fabs(iMuon->innerTrack()->dz(pPV->position())) < 0.5) && 
 	(iMuon->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
-	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax))) {
+	*/((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax))) {
       float iso = 0.0;
       if (usePFIso) {
 	iso = getMuonCombPFIso(*iMuon, PUSubtractionCoeff)/iMuon->pt();
@@ -737,10 +740,10 @@ Common::getTightIsolatedRecoMuons(const edm::Handle<reco::MuonRefVector>& pMuons
        ++iMuon) {
     if ((pPV != NULL) && 
 	muon::isTightMuon(**iMuon, *pPV) && 
-	(*iMuon)->isPFMuon() && 
+/*	(*iMuon)->isPFMuon() && 
 	(fabs((*iMuon)->innerTrack()->dz(pPV->position())) < 0.5) && 
 	((*iMuon)->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
-	((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax))) {
+*/	((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax))) {
       float iso = 0.0;
       if (usePFIso) {
 	iso = getMuonCombPFIso(**iMuon, PUSubtractionCoeff)/(*iMuon)->pt();

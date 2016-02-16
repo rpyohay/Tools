@@ -192,8 +192,8 @@ bool CustomMuonSelector::filter(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   /*fill STL container of soft muons (cf. 
     https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideMuonId#Soft_Muon)*/
-  else if (muonID_ == "soft") {
-    muons = pMuons.isValid() ? 
+  else if (muonID_ == "soft"){
+     muons = pMuons.isValid() ? 
       Common::getSoftRecoMuons(pMuons, pBaseMuons, pPV, etaMax_) : 
       Common::getSoftRecoMuons(pBaseMuons, pPV, etaMax_);
   }
