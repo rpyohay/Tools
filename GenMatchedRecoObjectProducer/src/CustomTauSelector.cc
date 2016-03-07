@@ -59,22 +59,21 @@ private:
   // ----------member data ---------------------------
 
   //input tag for reco tau collection
-  edm::InputTag tauTag_;
 
   //input tag for base tau collection
-  edm::InputTag baseTauTag_;
+  edm::EDGetTokenT<reco::PFTauCollection> baseTauTag_;
 
   //input tag for tau isolation energy
-  edm::InputTag tauHadIsoTag_;
+  edm::EDGetTokenT<reco::PFTauDiscriminator> tauHadIsoTag_;
 
   //input tag for clean jet collection
-  edm::InputTag jetTag_;
+  edm::EDGetTokenT<reco::PFJetCollection> jetTag_;
 
   //input tag for map jet muon removal decisions
-  edm::InputTag muonRemovalDecisionTag_;
+  edm::EDGetTokenT<edm::ValueMap<bool> > muonRemovalDecisionTag_;
 
   //input tag for overlap candidate collection
-  edm::InputTag overlapCandTag_;
+  edm::EDGetTokenT<edm::RefVector<std::vector<T> > > overlapCandTag_;
 
   //vector of input tags, 1 for each discriminator the tau should pass
   std::vector<edm::InputTag> tauDiscriminatorTags_;
@@ -111,17 +110,11 @@ private:
 //
 template<class T>
 CustomTauSelector<T>::CustomTauSelector(const edm::ParameterSet& iConfig) :
-  tauTag_(iConfig.existsAs<edm::InputTag>("tauTag") ? 
-	  iConfig.getParameter<edm::InputTag>("tauTag") : edm::InputTag()),
-  baseTauTag_(iConfig.getParameter<edm::InputTag>("baseTauTag")),
-  tauHadIsoTag_(iConfig.getParameter<edm::InputTag>("tauHadIsoTag")),
-  jetTag_(iConfig.existsAs<edm::InputTag>("jetTag") ? 
-	  iConfig.getParameter<edm::InputTag>("jetTag") : edm::InputTag()),
-  muonRemovalDecisionTag_(iConfig.existsAs<edm::InputTag>("muonRemovalDecisionTag") ? 
-			  iConfig.getParameter<edm::InputTag>("muonRemovalDecisionTag") : 
-			  edm::InputTag()),
-  overlapCandTag_(iConfig.existsAs<edm::InputTag>("overlapCandTag") ? 
-		  iConfig.getParameter<edm::InputTag>("overlapCandTag") : edm::InputTag()),
+  baseTauTag_(consumes<reco::PFTauCollection>(iConfig.getParameter<edm::InputTag>("baseTauTag"))),
+  tauHadIsoTag_(consumes<reco::PFTauDiscriminator>(iConfig.getParameter<edm::InputTag>("tauHadIsoTag"))),
+  jetTag_(consumes<reco::PFJetCollection>(iConfig.getParameter<edm::InputTag>("jetTag"))),
+  muonRemovalDecisionTag_(consumes<edm::ValueMap<bool> >(iConfig.getParameter<edm::InputTag>("muonRemovalDecisionTag"))),
+  overlapCandTag_(consumes<edm::RefVector<std::vector<T> > >(iConfig.getParameter<edm::InputTag>("overlapCandTag"))),
   tauDiscriminatorTags_(iConfig.getParameter<std::vector<edm::InputTag> >("tauDiscriminatorTags")),
   passDiscriminator_(iConfig.getParameter<bool>("passDiscriminator")),
   pTMin_(iConfig.getParameter<double>("pTMin")),
@@ -130,16 +123,16 @@ CustomTauSelector<T>::CustomTauSelector(const edm::ParameterSet& iConfig) :
   dR_(iConfig.getParameter<double>("dR")),
   minNumObjsToPassFilter_(iConfig.getParameter<unsigned int>("minNumObjsToPassFilter"))
 {
-  if (((jetTag_ == edm::InputTag()) && !(muonRemovalDecisionTag_ == edm::InputTag())) || 
-      (!(jetTag_ == edm::InputTag()) && (muonRemovalDecisionTag_ == edm::InputTag()))) {
-    std::cerr << "Warning: only one of jetTag or muonRemovalDecisionTag was supplied.  No ";
-    std::cerr << "decision on tau seed jet will be made.\n";
-  }
-  if ((overlapCandTag_ == edm::InputTag()) && !(jetTag_ == edm::InputTag()) && 
-      !(muonRemovalDecisionTag_ == edm::InputTag())) {
-    std::cerr << "Warning: both jetTag and muonRemovalDecisionTag were supplied, but not ";
-    std::cerr << "overlapCandTag.  Overlap with overlap candidates will not be checked.\n";
-  }
+//  if (((jetTag_ == edm::InputTag()) && !(muonRemovalDecisionTag_ == edm::InputTag())) || 
+//      (!(jetTag_ == edm::InputTag()) && (muonRemovalDecisionTag_ == edm::InputTag()))) {
+//    std::cerr << "Warning: only one of jetTag or muonRemovalDecisionTag was supplied.  No ";
+//   std::cerr << "decision on tau seed jet will be made.\n";
+//  }
+//  if ((overlapCandTag_ == edm::InputTag()) && !(jetTag_ == edm::InputTag()) && 
+//      !(muonRemovalDecisionTag_ == edm::InputTag())) {
+//    std::cerr << "Warning: both jetTag and muonRemovalDecisionTag were supplied, but not ";
+//    std::cerr << "overlapCandTag.  Overlap with overlap candidates will not be checked.\n";
+//  }
   produces<reco::PFTauRefVector>();
 }
 
@@ -164,41 +157,30 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
   //create pointer to output collection
   std::auto_ptr<reco::PFTauRefVector> tauColl(new reco::PFTauRefVector);
 
-  //get taus
-  edm::Handle<reco::PFTauRefVector> pTaus;
-  if (tauTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(tauTag_, pTaus);
-
   //get base tau collection
   edm::Handle<reco::PFTauCollection> pBaseTaus;
-  iEvent.getByLabel(baseTauTag_, pBaseTaus);
+  iEvent.getByToken(baseTauTag_, pBaseTaus);
 
   //get hadronic tau deltaBeta-corrected isolation
   edm::Handle<reco::PFTauDiscriminator> pTauHadIso;
-  iEvent.getByLabel(tauHadIsoTag_, pTauHadIso);
+  iEvent.getByToken(tauHadIsoTag_, pTauHadIso);
 
   //get tau discriminators
-  std::vector<edm::Handle<reco::PFTauDiscriminator> > 
-    pTauDiscriminators(tauDiscriminatorTags_.size(), edm::Handle<reco::PFTauDiscriminator>());
-  for (std::vector<edm::InputTag>::const_iterator iTag = tauDiscriminatorTags_.begin(); 
-       iTag != tauDiscriminatorTags_.end(); ++iTag) {
+  std::vector<edm::Handle<reco::PFTauDiscriminator> > pTauDiscriminators(tauDiscriminatorTags_.size(), edm::Handle<reco::PFTauDiscriminator>());
+  for (std::vector<edm::InputTag>::const_iterator iTag = tauDiscriminatorTags_.begin(); iTag != tauDiscriminatorTags_.end(); ++iTag) 
     iEvent.getByLabel(*iTag, pTauDiscriminators[iTag - tauDiscriminatorTags_.begin()]);
-  }
 
   //get jet collection
   edm::Handle<reco::PFJetCollection> pJets;
-  if (jetTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(jetTag_, pJets);
+  iEvent.getByToken(jetTag_, pJets);
 
   //get map of jet muon removal decisions
   edm::Handle<edm::ValueMap<bool> > pMuonRemovalDecisions;
-  if (muonRemovalDecisionTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(muonRemovalDecisionTag_, pMuonRemovalDecisions);
+  iEvent.getByToken(muonRemovalDecisionTag_, pMuonRemovalDecisions);
 
   //get overlap candidates
   edm::Handle<edm::RefVector<std::vector<T> > > pOverlapCands;
-  if (overlapCandTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(overlapCandTag_, pOverlapCands);
+  iEvent.getByToken(overlapCandTag_, pOverlapCands);
 
   //fill STL container of pointers to overlap candidates
   std::vector<T*> overlapCandPtrs;
@@ -215,9 +197,7 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
 //   std::cerr << "Base taus " << pBaseTaus.isValid() << std::endl;
 
   //fill STL container with taus passing specified discriminators in specified eta and pT range
-  std::vector<reco::PFTauRef> taus = pTaus.isValid() ? 
-    Common::getRecoTaus(pTaus, pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, 
-			passDiscriminator_, isoMax_) : 
+  std::vector<reco::PFTauRef> taus = 
     Common::getRecoTaus(pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, 
 			passDiscriminator_, isoMax_);
 

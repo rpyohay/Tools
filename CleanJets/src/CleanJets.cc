@@ -93,13 +93,13 @@ class CleanJets : public edm::EDProducer {
       // ----------member data ---------------------------
 
       // source of the jets to be cleaned of muons
-      edm::InputTag jetSrc_;
+      edm::EDGetTokenT<PFJetCollection> jetSrc_;
 
       // source of muons that, if found within jet, should be removed
-      edm::InputTag muonSrc_;
+      edm::EDGetTokenT<MuonRefVector> muonSrc_;
 
       // source of PF candidates
-      edm::InputTag PFCandSrc_;
+      edm::EDGetTokenT<PFCandidateCollection> PFCandSrc_;
 
       //input, output
       TFile* out_;
@@ -128,22 +128,22 @@ class CleanJets : public edm::EDProducer {
 //
 // constructors and destructor
 //
-CleanJets::CleanJets(const edm::ParameterSet& iConfig)
+CleanJets::CleanJets(const edm::ParameterSet& iConfig):
+  jetSrc_(consumes<PFJetCollection>(iConfig.getParameter<edm::InputTag>("jetSrc"))),
+  muonSrc_(consumes<MuonRefVector>(iConfig.getParameter<edm::InputTag>("muonSrc"))),
+  PFCandSrc_(consumes<PFCandidateCollection>(iConfig.getParameter<edm::InputTag>("PFCandSrc"))),
+  outFileName_(iConfig.getParameter<std::string>("outFileName"))
 {
-  jetSrc_ = iConfig.getParameter<edm::InputTag>("jetSrc");
-  muonSrc_ = iConfig.getParameter<edm::InputTag>("muonSrc");
-  PFCandSrc_ = iConfig.getParameter<edm::InputTag>("PFCandSrc");
-  outFileName_ = iConfig.getParameter<std::string>("outFileName");
   cfg_ = const_cast<edm::ParameterSet*>(&iConfig);
-  debug_ = false; //set to true if you want to draw validation histograms
+  debug_ = true; //set to true if you want to draw validation histograms
 
   //register your products
   produces<PFJetCollection>( "ak4PFJetsNoMu" );
-  produces<edm::ValueMap<bool> >( "valMap" );
-  produces<edm::ValueMap<MuonRefVector> >( "muonValMap" );
-  produces<edm::ValueMap<PFJetRef> >( "jetValMap" );
+  produces<edm::ValueMap<bool> >("valMap" );
+  produces<edm::ValueMap<MuonRefVector> >( );
+  produces<edm::ValueMap<PFJetRef> >( );
   produces<PFCandidateCollection>();
-  
+
 }
 
 
@@ -165,14 +165,14 @@ void
 CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
    Handle<PFJetCollection> PFJets;
-   iEvent.getByLabel(jetSrc_, PFJets);
+   iEvent.getByToken(jetSrc_, PFJets);
    auto_ptr<PFJetCollection> SetOfJets( new PFJetCollection );
 
    Handle<MuonRefVector> muons;
-   iEvent.getByLabel(muonSrc_, muons);
+   iEvent.getByToken(muonSrc_, muons);
 
    Handle<PFCandidateCollection> PFCands;
-   iEvent.getByLabel(PFCandSrc_, PFCands);
+   iEvent.getByToken(PFCandSrc_, PFCands);
    auto_ptr<PFCandidateCollection> PFCandsExcludingSoftMuons(new PFCandidateCollection);
 
    //fill an STL container with muon ref keys

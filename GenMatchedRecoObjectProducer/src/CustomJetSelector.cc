@@ -58,16 +58,16 @@ private:
 
 
   //input tag for selected tau collection
-  edm::InputTag tauTag_;
+  edm::EDGetTokenT<reco::PFTauRefVector> tauTag_;
 
   //input tag for overlap candidate collection
-  edm::InputTag overlapCandTag_;
+  edm::EDGetTokenT<edm::View<reco::Candidate> > overlapCandTag_;
 
   //input tag for old jet collection
-  edm::InputTag oldJetTag_;
+  edm::EDGetTokenT<reco::PFJetCollection> oldJetTag_;
 
   //input tag for the jet-soft-muon map
-  edm::InputTag jetMuonMapTag_;
+  edm::EDGetTokenT<edm::ValueMap<reco::MuonRefVector> > jetMuonMapTag_;
 
   //pT cut
   double pTMin_;
@@ -97,10 +97,10 @@ private:
 // constructors and destructor
 //
 CustomJetSelector::CustomJetSelector(const edm::ParameterSet& iConfig) :
-  tauTag_(iConfig.getParameter<edm::InputTag>("tauTag")),
-  overlapCandTag_(iConfig.getParameter<edm::InputTag>("overlapCandTag")),
-  oldJetTag_(iConfig.getParameter<edm::InputTag>("oldJetTag")),
-  jetMuonMapTag_(iConfig.getParameter<edm::InputTag>("jetMuonMapTag")),
+  tauTag_(consumes<reco::PFTauRefVector>(iConfig.getParameter<edm::InputTag>("tauTag"))),
+  overlapCandTag_(consumes<edm::View<reco::Candidate> >(iConfig.getParameter<edm::InputTag>("overlapCandTag"))),
+  oldJetTag_(consumes<reco::PFJetCollection>(iConfig.getParameter<edm::InputTag>("oldJetTag"))),
+  jetMuonMapTag_(consumes<edm::ValueMap<reco::MuonRefVector> >(iConfig.getParameter<edm::InputTag>("jetMuonMapTag"))),
   pTMin_(iConfig.getParameter<double>("pTMin")),
   absEtaMax_(iConfig.getParameter<double>("absEtaMax")),
   dR_(iConfig.getParameter<double>("dR")),
@@ -132,19 +132,19 @@ bool CustomJetSelector::filter(edm::Event& iEvent, const edm::EventSetup& iSetup
 
   //get taus
   edm::Handle<reco::PFTauRefVector> pTaus;
-  iEvent.getByLabel(tauTag_, pTaus);
+  iEvent.getByToken(tauTag_, pTaus);
 
   //get muons
   edm::Handle<edm::View<reco::Candidate> > pOverlapCands;
-  iEvent.getByLabel(overlapCandTag_, pOverlapCands);
+  iEvent.getByToken(overlapCandTag_, pOverlapCands);
 
   //get old jets
   edm::Handle<reco::PFJetCollection> pOldJets;
-  iEvent.getByLabel(oldJetTag_, pOldJets);
+  iEvent.getByToken(oldJetTag_, pOldJets);
 
   //get jet-muon map
   edm::Handle<edm::ValueMap<reco::MuonRefVector> > pMuonJetMap;
-  iEvent.getByLabel(jetMuonMapTag_, pMuonJetMap);
+  iEvent.getByToken(jetMuonMapTag_, pMuonJetMap);
 
   //get AK5 PF L1FastL2L3 jet correction service
   const JetCorrector* corrector = JetCorrector::getJetCorrector("ak5PFL1FastL2L3", iSetup);

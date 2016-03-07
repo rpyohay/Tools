@@ -58,16 +58,16 @@ private:
   // ----------member data ---------------------------
 
   //input tag for base reco muon collection
-  edm::InputTag baseMuonTag_;
+  edm::EDGetTokenT<reco::MuonCollection> baseMuonTag_;
 
   //input tag for reco muon collection
-  edm::InputTag muonTag_;
+  edm::EDGetTokenT<reco::MuonRefVector> muonTag_;
 
   //input tag for reco vertex collection
-  edm::InputTag vtxTag_;
+  edm::EDGetTokenT<reco::VertexCollection> vtxTag_;
 
   //input tag for muons that should not be allowed to pass (i.e. they passed some other selection)
-  edm::InputTag vetoMuonTag_;
+  edm::EDGetTokenT<reco::MuonRefVector> vetoMuonTag_;
 
   //muon ID to apply
   std::string muonID_;
@@ -106,12 +106,10 @@ private:
 // constructors and destructor
 //
 CustomMuonSelector::CustomMuonSelector(const edm::ParameterSet& iConfig) :
-  baseMuonTag_(iConfig.getParameter<edm::InputTag>("baseMuonTag")),
-  muonTag_(iConfig.existsAs<edm::InputTag>("muonTag") ? 
-	   iConfig.getParameter<edm::InputTag>("muonTag") : edm::InputTag()),
-  vtxTag_(iConfig.getParameter<edm::InputTag>("vtxTag")),
-  vetoMuonTag_(iConfig.existsAs<edm::InputTag>("vetoMuonTag") ? 
-	   iConfig.getParameter<edm::InputTag>("vetoMuonTag") : edm::InputTag()),
+  baseMuonTag_(consumes<reco::MuonCollection>(iConfig.getParameter<edm::InputTag>("baseMuonTag"))),
+  muonTag_(consumes<reco::MuonRefVector>(iConfig.getParameter<edm::InputTag>("muonTag"))),
+  vtxTag_(consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("vtxTag"))),
+  vetoMuonTag_(consumes<reco::MuonRefVector>(iConfig.getParameter<edm::InputTag>("vetoMuonTag"))),
   muonID_(iConfig.getParameter<std::string>("muonID")),
   PFIsoMax_(iConfig.getParameter<double>("PFIsoMax")),
   detectorIsoMax_(iConfig.getParameter<double>("detectorIsoMax")),
@@ -146,21 +144,19 @@ bool CustomMuonSelector::filter(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //get base muons
   edm::Handle<reco::MuonCollection> pBaseMuons;
-  iEvent.getByLabel(baseMuonTag_, pBaseMuons);
+  iEvent.getByToken(baseMuonTag_, pBaseMuons);
 
   //get muons
   edm::Handle<reco::MuonRefVector> pMuons;
-  if (muonTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(muonTag_, pMuons);
+  iEvent.getByToken(muonTag_, pMuons);
 
   //get vertices
   edm::Handle<reco::VertexCollection> pVertices;
-  iEvent.getByLabel(vtxTag_, pVertices);
+  iEvent.getByToken(vtxTag_, pVertices);
 
   //get veto muons
   edm::Handle<reco::MuonRefVector> pVetoMuons;
-  if (vetoMuonTag_ == edm::InputTag()) {}
-  else iEvent.getByLabel(vetoMuonTag_, pVetoMuons);
+  iEvent.getByToken(vetoMuonTag_, pVetoMuons);
 
   //identify the first good vertex (the "primary" (?))
   reco::Vertex* pPV = Common::getPrimaryVertex(pVertices);
