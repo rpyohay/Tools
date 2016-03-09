@@ -76,7 +76,7 @@ private:
   // ----------member data ---------------------------
 
   //input tag for gen particle collection
-  edm::InputTag genParticleTag_;
+   edm::EDGetTokenT<reco::GenParticleCollection>  genParticleTag_;
 
   //list of fabs(PDG ID) to match
   std::vector<unsigned int> absMatchPDGIDs_;
@@ -139,7 +139,7 @@ private:
 // constructors and destructor
 //
 GenObjectProducer::GenObjectProducer(const edm::ParameterSet& iConfig) :
-  genParticleTag_(iConfig.getParameter<edm::InputTag>("genParticleTag")),
+  genParticleTag_(consumes<reco::GenParticleCollection>(iConfig.getParameter<edm::InputTag>("genParticleTag"))),
   absMatchPDGIDs_(iConfig.getParameter<std::vector<unsigned int> >("absMatchPDGIDs")),
   sisterAbsMatchPDGID_(iConfig.getParameter<unsigned int>("sisterAbsMatchPDGID")),
   genTauDecayIDPSet_(iConfig.getParameter<edm::ParameterSet>("genTauDecayIDPSet")),
@@ -200,7 +200,7 @@ bool GenObjectProducer::filter(edm::Event& iEvent, const edm::EventSetup& iSetup
 {
   //get GEN particles
   edm::Handle<reco::GenParticleCollection> pGenParticles;
-  iEvent.getByLabel(genParticleTag_, pGenParticles);
+  iEvent.getByToken(genParticleTag_, pGenParticles);
 
   //fill STL container of all decay products of pseudoscalar Higgses
   std::vector<GenTauDecayID> aDecayProducts;

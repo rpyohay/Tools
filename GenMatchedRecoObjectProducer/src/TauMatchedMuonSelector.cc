@@ -56,13 +56,13 @@ private:
   // ----------member data ---------------------------
 
   //input tag for reco tau collection
-  edm::InputTag tauTag_;
+  edm::EDGetTokenT<edm::View<reco::PFTau> > tauTag_;
 
   //input tag for muon collection
-  edm::InputTag muonTag_;
+  edm::EDGetTokenT<reco::MuonRefVector> muonTag_;
 
   //jet-muon map tag
-  edm::InputTag jetMuonMapTag_;
+  edm::EDGetTokenT<edm::ValueMap<reco::MuonRefVector> > jetMuonMapTag_;
 
   //minimum number of objects that must be found to pass the filter
   unsigned int minNumObjsToPassFilter_;
@@ -80,9 +80,9 @@ private:
 // constructors and destructor
 //
 TauMatchedMuonSelector::TauMatchedMuonSelector(const edm::ParameterSet& iConfig) :
-  tauTag_(iConfig.getParameter<edm::InputTag>("tauTag")),
-  muonTag_(iConfig.getParameter<edm::InputTag>("muonTag")),
-  jetMuonMapTag_(iConfig.getParameter<edm::InputTag>("jetMuonMapTag")),
+  tauTag_(consumes<edm::View<reco::PFTau> >(iConfig.getParameter<edm::InputTag>("tauTag"))),
+  muonTag_(consumes<reco::MuonRefVector>(iConfig.getParameter<edm::InputTag>("muonTag"))),
+  jetMuonMapTag_(consumes<edm::ValueMap<reco::MuonRefVector> >(iConfig.getParameter<edm::InputTag>("jetMuonMapTag"))),
   minNumObjsToPassFilter_(iConfig.getParameter<unsigned int>("minNumObjsToPassFilter"))
 {
   produces<reco::MuonRefVector>();
@@ -110,15 +110,15 @@ bool TauMatchedMuonSelector::filter(edm::Event& iEvent, const edm::EventSetup& i
 
   //get taus
   edm::Handle<edm::View<reco::PFTau> > pTaus;
-  iEvent.getByLabel(tauTag_, pTaus);
+  iEvent.getByToken(tauTag_, pTaus);
 
   //get muons
   edm::Handle<reco::MuonRefVector> pMuons;
-  iEvent.getByLabel(muonTag_, pMuons);
+  iEvent.getByToken(muonTag_, pMuons);
 
   //get jet-muon map
   edm::Handle<edm::ValueMap<reco::MuonRefVector> > pMuonJetMap;
-  iEvent.getByLabel(jetMuonMapTag_, pMuonJetMap);
+  iEvent.getByToken(jetMuonMapTag_, pMuonJetMap);
 
   //loop over muons
   unsigned int nPassingMuons = 0;
