@@ -320,24 +320,25 @@ Common::getSoftRecoMuons(const edm::Handle<reco::MuonCollection>& pMuons, const 
 }
 
 std::vector<reco::MuonRef>
-Common::getSoftRecoMuons(const edm::Handle<reco::MuonRefVector>& pMuons, 
-			 const edm::Handle<reco::MuonCollection>& pBaseMuons, 
-			 const reco::Vertex* pPV, const double etaMax)
+Common::getSoftRecoMuons(const edm::Handle<reco::MuonRefVector>& pMuons,
+                         const edm::Handle<reco::MuonCollection>& pBaseMuons,
+                         const reco::Vertex* pPV, const double etaMax)
 {
   std::vector<reco::MuonRef> softMuons;
-  for (reco::MuonRefVector::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end(); 
+  for (reco::MuonRefVector::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end();
        ++iMuon) {
     const reco::TrackRef innerTrack = (*iMuon)->innerTrack();
     if (pPV != NULL) {
-      const reco::Vertex::Point PVPos = pPV->position();
-      if (muon::isGoodMuon(**iMuon, muon::TMOneStationTight) && 
-	  ((*iMuon)->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
-	  (innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) && 
-	  (innerTrack->normalizedChi2() < 1.8) && 
-	  (fabs(innerTrack->dxy(PVPos)) < 3.0) && 
-	  (fabs(innerTrack->dz(PVPos)) < 30.0) && 
-	  ((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax))) {
-	softMuons.push_back(reco::MuonRef(pBaseMuons, iMuon->key()));
+      if(muon::isSoftMuon(**iMuon, *pPV)&&((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax)))
+      //const reco::Vertex::Point PVPos = pPV->position();
+      /*if (muon::isGoodMuon(**iMuon, muon::TMOneStationTight) &&
+          ((*iMuon)->track()->hitPattern().trackerLayersWithMeasurement() > 5) &&
+          (innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) &&
+          (innerTrack->normalizedChi2() < 1.8) &&
+          (fabs(innerTrack->dxy(PVPos)) < 3.0) &&
+          (fabs(innerTrack->dz(PVPos)) < 30.0) &&
+          ((etaMax == -1.0) || (fabs((*iMuon)->eta()) < etaMax)))*/ {
+        softMuons.push_back(reco::MuonRef(pBaseMuons, iMuon->key()));
       }
     }
   }
@@ -345,21 +346,22 @@ Common::getSoftRecoMuons(const edm::Handle<reco::MuonRefVector>& pMuons,
 }
 
 std::vector<reco::MuonRef>
-Common::getSoftRecoMuonsFromPV(const edm::Handle<reco::MuonCollection>& pMuons, 
-			       const reco::Vertex* pPV, const double etaMax)
+Common::getSoftRecoMuonsFromPV(const edm::Handle<reco::MuonCollection>& pMuons,
+                               const reco::Vertex* pPV, const double etaMax)
 {
   std::vector<reco::MuonRef> softMuons;
-  for (reco::MuonCollection::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end(); 
+  for (reco::MuonCollection::const_iterator iMuon = pMuons->begin(); iMuon != pMuons->end();
        ++iMuon) {
-    const reco::TrackRef innerTrack = iMuon->innerTrack();
+    if(muon::isSoftMuon(*iMuon, *pPV)&&((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))
+  /*  const reco::TrackRef innerTrack = iMuon->innerTrack();
     const reco::Vertex::Point PVPos = pPV->position();
-    if (muon::isGoodMuon(*iMuon, muon::TMOneStationTight) && 
-	(iMuon->track()->hitPattern().trackerLayersWithMeasurement() > 5) && 
-	(innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) && 
-	(innerTrack->normalizedChi2() < 1.8) && 
-	(fabs(innerTrack->dxy(PVPos)) < 3.0) && 
-	(fabs(innerTrack->dz(PVPos)) < 0.5) && 
-	((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax))) {
+    if (muon::isGoodMuon(*iMuon, muon::TMOneStationTight) &&
+        (iMuon->track()->hitPattern().trackerLayersWithMeasurement() > 5) &&
+        (innerTrack->hitPattern().pixelLayersWithMeasurement() > 1) &&
+        (innerTrack->normalizedChi2() < 1.8) &&
+        (fabs(innerTrack->dxy(PVPos)) < 3.0) &&
+        (fabs(innerTrack->dz(PVPos)) < 0.5) &&
+        ((etaMax == -1.0) || (fabs(iMuon->eta()) < etaMax)))*/ {
       softMuons.push_back(reco::MuonRef(pMuons, iMuon - pMuons->begin()));
     }
   }

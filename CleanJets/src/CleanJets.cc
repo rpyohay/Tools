@@ -140,8 +140,8 @@ CleanJets::CleanJets(const edm::ParameterSet& iConfig):
   //register your products
   produces<PFJetCollection>( "ak4PFJetsNoMu" );
   produces<edm::ValueMap<bool> >("valMap" );
-  produces<edm::ValueMap<MuonRefVector> >( );
-  produces<edm::ValueMap<PFJetRef> >( );
+  produces<edm::ValueMap<MuonRefVector> >( "muonValMap" );
+  produces<edm::ValueMap<PFJetRef> >( "jetValMap" );
   produces<PFCandidateCollection>();
 
 }
