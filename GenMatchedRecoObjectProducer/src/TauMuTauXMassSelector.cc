@@ -57,10 +57,10 @@ private:
   // ----------member data ---------------------------
 
   //input tag for reco tau collection
-  edm::InputTag tauTag_;
+  edm::EDGetTokenT<reco::PFTauRefVector> tauTag_;
 
   //input tag for jet muon map
-  edm::InputTag jetMuonMapTag_;
+  edm::EDGetTokenT<edm::ValueMap<reco::MuonRefVector> > jetMuonMapTag_;
 };
 
 //
@@ -75,8 +75,8 @@ private:
 // constructors and destructor
 //
 TauMuTauXMassSelector::TauMuTauXMassSelector(const edm::ParameterSet& iConfig) :
-  tauTag_(iConfig.getParameter<edm::InputTag>("tauTag")),
-  jetMuonMapTag_(iConfig.getParameter<edm::InputTag>("jetMuonMapTag"))
+  tauTag_(consumes<reco::PFTauRefVector>(iConfig.getParameter<edm::InputTag>("tauTag"))),
+  jetMuonMapTag_(consumes<edm::ValueMap<reco::MuonRefVector> >(iConfig.getParameter<edm::InputTag>("jetMuonMapTag")))
 {
   produces<reco::PFTauRefVector>();
   produces<reco::MuonRefVector>();
@@ -104,11 +104,11 @@ bool TauMuTauXMassSelector::filter(edm::Event& iEvent, const edm::EventSetup& iS
 
   //get taus
   edm::Handle<reco::PFTauRefVector> pTaus;
-  iEvent.getByLabel(tauTag_, pTaus);
+  iEvent.getByToken(tauTag_, pTaus);
 
   //get jet-muon map
   edm::Handle<edm::ValueMap<reco::MuonRefVector> > pMuonJetMap;
-  iEvent.getByLabel(jetMuonMapTag_, pMuonJetMap);
+  iEvent.getByToken(jetMuonMapTag_, pMuonJetMap);
 
   //sort selected taus by descending order in mu+X mass
   std::vector<reco::PFTauRef> muXMassSortedTaus;

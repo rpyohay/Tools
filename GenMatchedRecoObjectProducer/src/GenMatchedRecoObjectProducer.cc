@@ -60,20 +60,20 @@ private:
   // ----------member data ---------------------------
 
   //input tag for base gen particle collection
-  edm::InputTag genParticleTag_;
+  edm::EDGetTokenT<reco::GenParticleCollection> genParticleTag_;
 
   /*input tag for gen particle collection to match
     count on the user to pass in a collection that will not lead to the same reco object being 
     matched to multiple different gen objects
     for example, if the input object is a boosted di-tau pair, only 1 member of the pair should be 
     in the input collection*/
-  edm::InputTag selectedGenParticleTag_;
+  edm::EDGetTokenT<reco::GenParticleRefVector> selectedGenParticleTag_;
 
   //input tag for reco object collection
-  edm::InputTag recoObjTag_;
+  edm::EDGetTokenT<edm::RefVector<std::vector<T> > > recoObjTag_;
 
   //input tag for base reco object collection
-  edm::InputTag baseRecoObjTag_;
+  edm::EDGetTokenT<std::vector<T> > baseRecoObjTag_;
 
   //set of parameters for GenTauDecayID class
   edm::ParameterSet genTauDecayIDPSet_;
@@ -105,10 +105,10 @@ private:
 //
 template<class T>
 GenMatchedRecoObjectProducer<T>::GenMatchedRecoObjectProducer(const edm::ParameterSet& iConfig) :
-  genParticleTag_(iConfig.getParameter<edm::InputTag>("genParticleTag")),
-  selectedGenParticleTag_(iConfig.getParameter<edm::InputTag>("selectedGenParticleTag")),
-  recoObjTag_(iConfig.getParameter<edm::InputTag>("recoObjTag")),
-  baseRecoObjTag_(iConfig.getParameter<edm::InputTag>("baseRecoObjTag")),
+  genParticleTag_(consumes<reco::GenParticleCollection>(iConfig.getParameter<edm::InputTag>("genParticleTag"))),
+  selectedGenParticleTag_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("selectedGenParticleTag"))),
+  recoObjTag_(consumes<edm::RefVector<std::vector<T> > >(iConfig.getParameter<edm::InputTag>("recoObjTag"))),
+  baseRecoObjTag_(consumes<std::vector<T> >(iConfig.getParameter<edm::InputTag>("baseRecoObjTag"))),
   genTauDecayIDPSet_(iConfig.getParameter<edm::ParameterSet>("genTauDecayIDPSet")),
   applyPTCuts_(iConfig.getParameter<bool>("applyPTCuts")),
   countKShort_(iConfig.getParameter<bool>("countKShort")),
@@ -144,19 +144,19 @@ bool GenMatchedRecoObjectProducer<T>::filter(edm::Event& iEvent, const edm::Even
 {
   //get base gen particles
   edm::Handle<reco::GenParticleCollection> pGenParticles;
-  iEvent.getByLabel(genParticleTag_, pGenParticles);
+  iEvent.getByToken(genParticleTag_, pGenParticles);
 
   //get selected gen particles
   edm::Handle<reco::GenParticleRefVector> pSelectedGenParticles;
-  iEvent.getByLabel(selectedGenParticleTag_, pSelectedGenParticles);
+  iEvent.getByToken(selectedGenParticleTag_, pSelectedGenParticles);
 
   //get reco object collection
   edm::Handle<edm::RefVector<std::vector<T> > > pRecoObjs;
-  iEvent.getByLabel(recoObjTag_, pRecoObjs);
+  iEvent.getByToken(recoObjTag_, pRecoObjs);
 
   //get base reco object collection
   edm::Handle<std::vector<T> > pBaseRecoObjs;
-  iEvent.getByLabel(baseRecoObjTag_, pBaseRecoObjs);
+  iEvent.getByToken(baseRecoObjTag_, pBaseRecoObjs);
 
   //fill STL container of pointers to reco objects
   std::vector<T*> recoObjPtrs;
