@@ -35,11 +35,15 @@
 #include "DataFormats/MuonReco/interface/Muon.h"
 #include "DataFormats/EgammaCandidates/interface/Photon.h"
 #include "DataFormats/EgammaCandidates/interface/PhotonFwd.h"
-
+#include "FWCore/ServiceRegistry/interface/Service.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "TH1D.h"
+#include "TCanvas.h"
+#include "TFile.h"
 //
 // class declaration
 //
-
+using namespace edm;
 template<class T>
 class CustomTauSelector : public edm::EDFilter {
 public:
@@ -96,6 +100,7 @@ private:
 
   //minimum number of objects that must be found to pass the filter
   unsigned int minNumObjsToPassFilter_;
+  std::map<std::string, TH1D*> histos1D_;
 };
 
 //
@@ -128,7 +133,8 @@ CustomTauSelector<T>::CustomTauSelector(const edm::ParameterSet& iConfig) :
   etaMax_(iConfig.getParameter<double>("etaMax")),
   isoMax_(iConfig.getParameter<double>("isoMax")),
   dR_(iConfig.getParameter<double>("dR")),
-  minNumObjsToPassFilter_(iConfig.getParameter<unsigned int>("minNumObjsToPassFilter"))
+  minNumObjsToPassFilter_(iConfig.getParameter<unsigned int>("minNumObjsToPassFilter")),
+  histos1D_()
 {
   if (((jetTag_ == edm::InputTag()) && !(muonRemovalDecisionTag_ == edm::InputTag())) || 
       (!(jetTag_ == edm::InputTag()) && (muonRemovalDecisionTag_ == edm::InputTag()))) {
@@ -210,9 +216,10 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
 
 //   //debug
 //   std::cerr << "Jets " << pJets.isValid() << std::endl;
-//   std::cerr << "Value map " << pMuonRemovalDecisions.isValid() << std::endl;
-//   std::cerr << "Taus " << pTaus.isValid() << std::endl;
-//   std::cerr << "Base taus " << pBaseTaus.isValid() << std::endl;
+ //  std::cerr << "Value map " << pMuonRemovalDecisions.isValid() << std::endl;
+  // std::cerr << "Taus " << pTaus.isValid() << std::endl;
+  // std::cerr << "Base taus " << pBaseTaus.isValid() << std::endl;
+  // std::cout<<"pBaseTaus.size()=="<<pBaseTaus->size()<<std::endl;
 
   //fill STL container with taus passing specified discriminators in specified eta and pT range
   std::vector<reco::PFTauRef> taus = pTaus.isValid() ? 
@@ -220,26 +227,38 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
 			passDiscriminator_, isoMax_) : 
     Common::getRecoTaus(pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, 
 			passDiscriminator_, isoMax_);
-
+ 
   //loop over selected taus
   unsigned int nPassingTaus = 0;
   for (std::vector<reco::PFTauRef>::const_iterator iTau = taus.begin(); iTau != taus.end(); 
-       ++iTau) {
-
+       ++iTau) 
+  {
     //find the nearest overlap candidate to the tau
     int nearestMuonIndex = -1;
     const reco::Candidate* nearestMuon = 
       Common::nearestObject(*iTau, overlapCandPtrs, nearestMuonIndex);
-
+    if( (*pMuonRemovalDecisions)[(*iTau)->jetRef()]&& pOverlapCands.isValid())
+    {
+      histos1D_["testDRValMap"]->Fill(reco::deltaR(**iTau, *nearestMuon));
+      std::cout<<"nearestMuon!=NULL is true or not=="<<(nearestMuon!=NULL)<<std::endl;
+    }
+ 
     //if tau doesn't overlap with overlap candidate (or no overlap checking requested)...
+    if(pOverlapCands.isValid())   {
+      histos1D_["testDR"]->Fill(reco::deltaR(**iTau,*nearestMuon));
+      std::cout<<"nearestMuon!=NULL is true or not=="<<(nearestMuon!=NULL)<<std::endl;
+      std::cout<<"(reco::deltaR(**iTau, *nearestMuon) > dR_)=="<<(reco::deltaR(**iTau, *nearestMuon) > dR_)<<std::endl;
+    }
+   
     if (!(pOverlapCands.isValid()) || 
 	((nearestMuon != NULL) && (reco::deltaR(**iTau, *nearestMuon) > dR_))) {
-
       /*...if jet collection and muon removal decision map exist, fill output collection if tau is 
 	matched to jet tagged for muon removal*/
       if (pJets.isValid() && pMuonRemovalDecisions.isValid()) {
+//        std::cout<<"((*iTau)->jetRef())"<< (*pMuonRemovalDecisions)[(*iTau)->jetRef()]<<std::endl;
 	if ((*pMuonRemovalDecisions)[(*iTau)->jetRef()]) {
-	  tauColl->push_back(*iTau);
+	  histos1D_["TauPt"]->Fill((*iTau)->pt());
+          tauColl->push_back(*iTau);
 	  ++nPassingTaus;
 	}
       }
@@ -249,12 +268,21 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
       else {
 	tauColl->push_back(*iTau);
 	++nPassingTaus;
-      }
+      }//pjets.isValid()==0||pMuonRemovalDecisions.isValid()==0
+    }//outside if(!(pOver... but already store info of nPassingTaus
+    if(!pOverlapCands.isValid()){
+      std::cout<<"inside loop of iTau, if no overlap tag is provided"<<std::endl;
+      std::cout<<"((*iTau)->jetRef())"<< (*pMuonRemovalDecisions)[(*iTau)->jetRef()]<<std::endl;
+      std::cout<<"pJets.isValid()"<<pJets.isValid()<<std::endl;
+      std::cout<<"pMuonRemovalDecisions.isValid()"<<pMuonRemovalDecisions.isValid()<<std::endl;
+      std::cout<<"nPassingTaus"<<nPassingTaus<<std::endl;
+      histos1D_["tau_mu branching ratio"]->Fill((*pMuonRemovalDecisions)[(*iTau)->jetRef()]);
     }
   }
   iEvent.put(tauColl);
 
   //if not enough taus passing cuts were found in this event, stop processing
+  histos1D_["nPassing"]->Fill((nPassingTaus >= minNumObjsToPassFilter_));
   return (nPassingTaus >= minNumObjsToPassFilter_);
 }
 
@@ -262,6 +290,12 @@ bool CustomTauSelector<T>::filter(edm::Event& iEvent, const edm::EventSetup& iSe
 template<class T>
 void CustomTauSelector<T>::beginJob()
 {
+edm::Service< TFileService > fileService; 
+histos1D_["testDRValMap"]=fileService->make<TH1D>("testDRValMap","testDRValMap", 23, 0,7.0);
+histos1D_["testDR"]=fileService->make<TH1D>("test","test",23,0,7.0);
+histos1D_["tau_mu branching ratio"]=fileService->make<TH1D>("tau_mu branching ratio", "tau_mu branching rattio",2,0,2);
+histos1D_["TauPt"]=fileService->make<TH1D>("TauPt", "TauPt",100,0,300);
+histos1D_["nPassing"]=fileService->make<TH1D>("nPassing","nPassing",2,0,2);
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
