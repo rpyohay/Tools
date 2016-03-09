@@ -11,23 +11,22 @@ process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.Geometry.GeometryRecoDB_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff')
 process.load('TrackingTools.TransientTrack.TransientTrackBuilder_cfi')
-process.GlobalTag.globaltag = cms.string('74X_dataRun2_Prompt_v3')
+process.GlobalTag.globaltag = cms.string('76X_dataRun2_v15')
 process.load("Tools.CleanJets.cleanjets_cfi")
 
 
 #######################################
 # Declaring Input and configurations
 #######################################
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 process.source = cms.Source("PoolSource",
-         fileNames = cms.untracked.vstring('root://eoscms//eos/cms/store/user/mshi/gg2H2aa2mumutautau_STEP_2_9GeV/gg2H2aa2mumutautau_STEP_2_9GeV_978.root')
+         fileNames = cms.untracked.vstring('root://eoscms//eos/cms/store/user/mshi/gg2H2aa2mumutautau_19GeV_step2/gg2H2aa2mumutautau_19GeV_step2_NUM.root')
 )
 
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10) )
 
-#process.p = cms.Path(process.CleanJets)
 
+process.CleanJets.outFileName = cms.string('/afs/cern.ch/user/k/ktos/GroupDir/CMSSW_7_6_3/src/Tools/CleanJets/BSUB/DIRNAME/CleanJets_Plots_NUM.root')
 
 #######################################
 # HPS Tau Reconstruction alterations 
@@ -44,7 +43,7 @@ process.combinatoricRecoTaus.jetSrc = cms.InputTag('CleanJets', 'ak4PFJetsNoMu',
 # Configuring Output
 #######################################
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('file:TEST.root'),
+    fileName = cms.untracked.string('file:DIRNAME_NUM.root'),
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring('p')),
 )
 

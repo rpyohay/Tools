@@ -17,6 +17,7 @@ CleanJets = cms.EDProducer(
     'CleanJets',
     jetSrc = cms.InputTag("ak4PFJets"),
     muonSrc = cms.InputTag("muonsRef"),
+    baseMuonSrc = cms.InputTag("muons"),
     PFCandSrc = cms.InputTag("pfIsolatedMuonsEI"),
-    outFileName = cms.string('file:/afs/cern.ch/user/k/ktos/NMSSM_Analysis/CMSSW_7_4_12_patch4/src/Tools/CleanJets/BSUB/DIRNAME/CleanJets_Plots.root')
+    genParticleTag = cms.InputTag("genParticles")
 )
