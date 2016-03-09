@@ -214,12 +214,6 @@ std::cout << "<---------------------In CustomTauSelector-------------------->" <
 /*  std::vector<edm::Handle<reco::PFTauDiscriminator> >  pTauDiscriminators(tauDiscriminatorTags_.size(), edm::Handle<reco::PFTauDiscriminator>());
   for (std::vector<edm::InputTag>::const_iterator iTag = tauDiscriminatorTags_.begin(); iTag != tauDiscriminatorTags_.end(); ++iTag) 
     iEvent.getByLabel(*iTag, pTauDiscriminators[iTag - tauDiscriminatorTags_.begin()]);
-  
-  for ( std::vector<PFTauDiscriminatorToken>::const_iterator it = tauDiscriminatorTags_.begin(); it != tauDiscriminatorTags_.end(); ++it ) 
-  {
-    edm::Handle<reco::PFTauDiscriminator> particlesNotToBeFiltered;
-    iEvent.getByToken(*it, particlesNotToBeFiltered);
-  }//for
 */
 
   //get jet collection
@@ -239,25 +233,16 @@ std::cout << "<---------------------In CustomTauSelector-------------------->" <
 
   //fill STL container of pointers to overlap candidates
   std::vector<T*> overlapCandPtrs;
-  if (pOverlapCands.isValid()) {
-    for (typename edm::RefVector<std::vector<T> >::const_iterator iOverlapCand = 
-	   pOverlapCands->begin(); iOverlapCand != pOverlapCands->end(); 
-	 ++iOverlapCand) { overlapCandPtrs.push_back(const_cast<T*>(iOverlapCand->get())); }
+  if (pOverlapCands.isValid()) 
+  {
+    for (typename edm::RefVector<std::vector<T> >::const_iterator iOverlapCand = pOverlapCands->begin(); iOverlapCand != pOverlapCands->end(); ++iOverlapCand) 
+      overlapCandPtrs.push_back(const_cast<T*>(iOverlapCand->get())); 
   }
-
-//   //debug
-//   std::cerr << "Jets " << pJets.isValid() << std::endl;
- //  std::cerr << "Value map " << pMuonRemovalDecisions.isValid() << std::endl;
-  // std::cerr << "Taus " << pTaus.isValid() << std::endl;
-  // std::cerr << "Base taus " << pBaseTaus.isValid() << std::endl;
-  // std::cout<<"pBaseTaus.size()=="<<pBaseTaus->size()<<std::endl;
 
   //fill STL container with taus passing specified discriminators in specified eta and pT range
   std::vector<reco::PFTauRef> taus = pTaus.isValid() ? 
-    Common::getRecoTaus(pTaus, pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, 
-			passDiscriminator_, isoMax_) : 
-    Common::getRecoTaus(pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, 
-			passDiscriminator_, isoMax_);
+    Common::getRecoTaus(pTaus, pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, passDiscriminator_, isoMax_) : 
+    Common::getRecoTaus(pBaseTaus, pTauDiscriminators, pTauHadIso, pTMin_, etaMax_, passDiscriminator_, isoMax_);
  
   //loop over selected taus
   unsigned int nPassingTaus = 0;
@@ -281,32 +266,35 @@ std::cout << "<---------------------In CustomTauSelector-------------------->" <
         std::cout<<"(reco::deltaR(**iTau, *nearestMuon) > dR_)=="<<(reco::deltaR(**iTau, *nearestMuon) > dR_)<<std::endl;
       }
      
-      if (!(pOverlapCands.isValid()) || 
-  	((nearestMuon != NULL) && (reco::deltaR(**iTau, *nearestMuon) > dR_))) {
+      if (!(pOverlapCands.isValid()) || ((nearestMuon != NULL) && (reco::deltaR(**iTau, *nearestMuon) > dR_))) 
+      {
         /*...if jet collection and muon removal decision map exist, fill output collection if tau is 
   	matched to jet tagged for muon removal*/
-        if (pJets.isValid() && pMuonRemovalDecisions.isValid()) {
-  //        std::cout<<"((*iTau)->jetRef())"<< (*pMuonRemovalDecisions)[(*iTau)->jetRef()]<<std::endl;
-  	if ((*pMuonRemovalDecisions)[(*iTau)->jetRef()]) {
-  	  TauPt_->Fill((*iTau)->pt());
+        if (pJets.isValid() && pMuonRemovalDecisions.isValid()) 
+        {
+  	  if ((*pMuonRemovalDecisions)[(*iTau)->jetRef()]) 
+          {
+  	    TauPt_->Fill((*iTau)->pt());
             tauColl->push_back(*iTau);
-  	  ++nPassingTaus;
-  	}
-        }
+  	    ++nPassingTaus;
+  	  }//if (*pMuonRemovalDecisions)[(*iTau)->jetRef()]
+        }//if pJets.isValid() && pMuonRemovalDecisions.isValid()
   
         /*...if jet collection and muon removal decision map do not exist, assume no selection on 
   	tau seed jet is desired and fill output collection*/
-        else {
-  	tauColl->push_back(*iTau);
-  	++nPassingTaus;
+        else 
+ 	{
+  	  tauColl->push_back(*iTau);
+  	  ++nPassingTaus;
         }//pjets.isValid()==0||pMuonRemovalDecisions.isValid()==0
       }//outside if(!(pOver... but already store info of nPassingTaus
-      if(!pOverlapCands.isValid()){
-        std::cout<<"inside loop of iTau, if no overlap tag is provided"<<std::endl;
+      if (!pOverlapCands.isValid())
+      {
+        /*std::cout<<"inside loop of iTau, if no overlap tag is provided"<<std::endl;
         std::cout<<"((*iTau)->jetRef())"<< (*pMuonRemovalDecisions)[(*iTau)->jetRef()]<<std::endl;
         std::cout<<"pJets.isValid()"<<pJets.isValid()<<std::endl;
         std::cout<<"pMuonRemovalDecisions.isValid()"<<pMuonRemovalDecisions.isValid()<<std::endl;
-        std::cout<<"nPassingTaus"<<nPassingTaus<<std::endl;
+        std::cout<<"nPassingTaus"<<nPassingTaus<<std::endl;*/
         TauMuBranchingRatio_->Fill((*pMuonRemovalDecisions)[(*iTau)->jetRef()]);
       }
     }//if iTaucharge
