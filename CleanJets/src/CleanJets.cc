@@ -44,8 +44,8 @@
 #include "DataFormats/MuonReco/interface/MuonSelectors.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
-#include "BoostedTauAnalysis/Common/interface/Common.h"
-#include "BoostedTauAnalysis/Common/interface/GenTauDecayID.h"
+#include "Tools/Common/interface/Common.h"
+#include "Tools/Common/interface/GenTauDecayID.h"
 #include "DataFormats/Candidate/interface/Particle.h"
 #include "DataFormats/Candidate/interface/Candidate.h"
 #include "DataFormats/Candidate/interface/CandidateFwd.h"
@@ -93,22 +93,27 @@ class CleanJets : public edm::EDProducer {
       // ----------member data ---------------------------
 
       // source of the jets to be cleaned of muons
-      edm::InputTag jetSrc_;
+      edm::EDGetTokenT<PFJetCollection> jetSrc_;
 
       // source of muons that, if found within jet, should be removed
-      edm::InputTag muonSrc_;
+      edm::EDGetTokenT<MuonRefVector> muonSrc_;
 
       // source of PF candidates
-      edm::InputTag PFCandSrc_;
+      edm::EDGetTokenT<PFCandidateCollection> PFCandSrc_;
 
       //input, output
       TFile* out_;
       std::string outFileName_;
-      bool cutOnGenMatches_;
-      edm::InputTag thisTag_;
-      unsigned int momPDGID_;
       edm::ParameterSet* cfg_;
+      bool debug_;
 
+      //Histograms
+      TH1F* NMu_;
+      TH1F* MuEnergy_;
+      TH2F* DiffJetEvsMuonE_;
+      TH2F* JetEtavsMuEta_;
+      TH2F* JetConstBeforevsAfter_;
+      TH1F* DiffConstituents_;
 };
 
 //
@@ -123,25 +128,22 @@ class CleanJets : public edm::EDProducer {
 //
 // constructors and destructor
 //
-CleanJets::CleanJets(const edm::ParameterSet& iConfig)
+CleanJets::CleanJets(const edm::ParameterSet& iConfig):
+  jetSrc_(consumes<PFJetCollection>(iConfig.getParameter<edm::InputTag>("jetSrc"))),
+  muonSrc_(consumes<MuonRefVector>(iConfig.getParameter<edm::InputTag>("muonSrc"))),
+  PFCandSrc_(consumes<PFCandidateCollection>(iConfig.getParameter<edm::InputTag>("PFCandSrc"))),
+  outFileName_(iConfig.getParameter<std::string>("outFileName"))
 {
-  jetSrc_ = iConfig.getParameter<edm::InputTag>("jetSrc");
-  muonSrc_ = iConfig.existsAs<edm::InputTag>("muonSrc") ? 
-    iConfig.getParameter<edm::InputTag>("muonSrc") : edm::InputTag();
-  PFCandSrc_ = iConfig.getParameter<edm::InputTag>("PFCandSrc");
-  outFileName_ = iConfig.getParameter<std::string>("outFileName");
-  cutOnGenMatches_ = iConfig.getParameter<bool>("cutOnGenMatches");
-  thisTag_ = iConfig.getParameter<edm::InputTag>("thisTag");
-  momPDGID_ = iConfig.getParameter<unsigned int>("momPDGID");
   cfg_ = const_cast<edm::ParameterSet*>(&iConfig);
+  debug_ = true; //set to true if you want to draw validation histograms
 
   //register your products
   produces<PFJetCollection>( "ak4PFJetsNoMu" );
-  produces<edm::ValueMap<bool> >();
-  produces<edm::ValueMap<MuonRefVector> >();
-  produces<edm::ValueMap<PFJetRef> >();
+  produces<edm::ValueMap<bool> >("valMap" );
+  produces<edm::ValueMap<MuonRefVector> >( "muonValMap" );
+  produces<edm::ValueMap<PFJetRef> >( "jetValMap" );
   produces<PFCandidateCollection>();
-  
+
 }
 
 
@@ -162,17 +164,15 @@ CleanJets::~CleanJets()
 void
 CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-
    Handle<PFJetCollection> PFJets;
-   iEvent.getByLabel(jetSrc_, PFJets);
+   iEvent.getByToken(jetSrc_, PFJets);
    auto_ptr<PFJetCollection> SetOfJets( new PFJetCollection );
 
    Handle<MuonRefVector> muons;
-   if (muonSrc_ == InputTag()) {}
-   else iEvent.getByLabel(muonSrc_, muons);
+   iEvent.getByToken(muonSrc_, muons);
 
    Handle<PFCandidateCollection> PFCands;
-   iEvent.getByLabel(PFCandSrc_, PFCands);
+   iEvent.getByToken(PFCandSrc_, PFCands);
    auto_ptr<PFCandidateCollection> PFCandsExcludingSoftMuons(new PFCandidateCollection);
 
    //fill an STL container with muon ref keys
@@ -193,7 +193,7 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
    std::vector<PFJetRef> oldJets;
 
    std::vector<reco::PFJet> pfjetVector;
-   for (PFJetCollection::const_iterator j = PFJets->begin(); j != PFJets->end(); ++ j)
+   for (PFJetCollection::const_iterator j = PFJets->begin(); j != PFJets->end(); ++j)
      pfjetVector.push_back(*j);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,16 +204,10 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
    
    for(reco::PFJetCollection::const_iterator iJet = PFJets->begin(); iJet != PFJets->end(); ++iJet)
    { // loop over jets
-       
        std::vector<reco::PFCandidatePtr> JetPFCands = iJet->getPFConstituents();
        reco::PFJet::Specific specs = iJet->getSpecific();
-       cout << "JET INFO" << endl;
-       cout << "jet mMuonEnergy = " << iJet->getSpecific().mMuonEnergy << endl;
-       cout << "jet mMuonMultiplicity = " << iJet->getSpecific().mMuonMultiplicity << endl;
-       cout << "jet mChargedMuEnergy = " << iJet->getSpecific().mChargedMuEnergy << endl;
-       cout << "jet mChargedMultiplicity = " << iJet->getSpecific().mChargedMultiplicity << endl;
-       cout << "END JET INFO" << endl;
-       
+       double jetEBefore = iJet->energy(), muEta = 1000, muE = -10;
+       unsigned int nConstBefore = JetPFCands.size();
        math::XYZTLorentzVector pfmomentum;
        std::vector<edm::Ptr<Candidate> > jetConstituents;
        jetConstituents.clear();
@@ -226,9 +220,9 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
        for(std::vector<edm::Ptr<reco::PFCandidate> >::iterator i = JetPFCands.begin(); i != JetPFCands.end(); ++i)
        { // loop over PF candidates
-         reco::PFCandidate pfCand = *i;
+	 reco::PFCandidate pfCand = *i;
 	 
-         /* Is the PF Candidate a muon? */
+	 /* Is the PF Candidate a muon? */
 	 if (pfCand.particleId() == 3) //Reference: https://cmssdt.cern.ch/SDT/doxygen/CMSSW_7_1_17/doc/html/d8/d17/PFCandidate_8h_source.html
 	 { // if it's a muon
 	   // get the ref to the corresponding muon
@@ -236,43 +230,40 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	   reco::MuonRef theRecoMuon = pfCand.muonRef();
 	   PFCandMuons += 1;
 
-	   // it is a PF muon, but...
-	   // since it's not matched to an atm gen mu, keep it
+           //does this muon pass the desired muon ID?
+ 	   std::vector<unsigned int>::const_iterator iSoftMuon = std::find(muonRefKeys.begin(), muonRefKeys.end(), theRecoMuon.key());
+	
+           /*if we're not requiring gen matching but instead looking for muons in jets that pass the desired muon ID...*/	       
+           if (iSoftMuon != muonRefKeys.end()) 
+    	   {
+             muE = pfCand.p4().e();
+             muEta = pfCand.p4().eta();
+             specs.mMuonEnergy -= pfCand.p4().e();
+             specs.mMuonMultiplicity -= 1;
+             specs.mChargedMuEnergy -= pfCand.p4().e();
+             specs.mChargedMultiplicity -= 1;
+             //save tag decision for this muon
+             taggedMuonForRemoval = true;
 
-	   //does this muon pass the desired muon ID?
-	   std::vector<unsigned int>::const_iterator iSoftMuon = std::find(muonRefKeys.begin(), muonRefKeys.end(), theRecoMuon.key());
-		   
-	   /*if we're not requiring gen matching but instead looking for muons in jets that pass the desired muon ID...*/
-	   if (iSoftMuon != muonRefKeys.end())
-	   {
-	     //remove this muon
-	     specs.mMuonEnergy -= pfCand.p4().e();
-	     specs.mMuonMultiplicity -= 1;
-	     specs.mChargedMuEnergy -= pfCand.p4().e();
-	     specs.mChargedMultiplicity -= 1;
-		       
-	     //save tag decision for this muon
-	     taggedMuonForRemoval = true;
-		       
-	     /*add this muon ref to the vector of removed muons for this jet
-	        iSoftMuon - muonRefKeys.begin() is the index into muonRefKeys of the soft muon
-	        since muonRefKeys was filled in order of muons, it is also the index into 
-	        muons of the soft muon*/
-             removedMuons.push_back(muons->at(iSoftMuon - muonRefKeys.begin()));
+             /*add this muon ref to the vector of removed muons for this jet
+                iSoftMuon - muonRefKeys.begin() is the index into muonRefKeys of the soft muon
+                since muonRefKeys was filled in order of muons, it is also the index into 
+                muons of the soft muon*/
+	     removedMuons.push_back(muons->at(iSoftMuon - muonRefKeys.begin()));
 	   }//if iSoftMuon
-	   else 
+	   else
 	   {//this muon doesn't pass the soft ID, so keep it in the jet
 	     pfmomentum += pfCand.p4(); // total p4()
 	     jetConstituents.push_back((*i));
-	   }//else 
-  	 }//if pfCand.particleId() == 3		   
+	   }//else
+	 }//if pfCand.particleId() == 3
 	 else // if it's not a muon
 	 { // get p4 and constituents
 	   pfmomentum += pfCand.p4(); // total p4()
-	   jetConstituents.push_back((*i));
+ 	   jetConstituents.push_back((*i));
 	 } //get p4 and constituents
        } // loop over PF candidates
-       
+
        ////// Build a new jet without the muon /////////////
 
        PFJet muonfreePFJet(pfmomentum, specs, jetConstituents);
@@ -287,6 +278,19 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
        //ref to this (old) jet
        oldJets.push_back(PFJetRef(PFJets, iJet - PFJets->begin()));
       
+       NMu_->Fill(PFCandMuons );
+       if (taggedMuonForRemoval)
+       {
+         JetConstBeforevsAfter_->Fill(nConstBefore, jetConstituents.size());
+         DiffJetEvsMuonE_->Fill(jetEBefore - muonfreePFJet.energy(), muE );
+         JetEtavsMuEta_->Fill(iJet->eta(), muEta );
+	 MuEnergy_->Fill(muE );
+         //std::cout << "\tnConst: Before= " << nConstBefore << " \tjetConstituents.size= " << jetConstituents.size() << std::endl;
+         //std::cout << "\tJetE  : Before= " << jetEBefore << " \tmuonfreePFJet= " << muonfreePFJet.energy() << " \tMuon E= " << muE << std::endl;
+         //std::cout << "\tMuEta= " << muEta << " \tetiJet->eta()= " << iJet->eta() << std::endl;
+         DiffConstituents_->Fill( nConstBefore - jetConstituents.size());
+       }
+
    } // loop over jets
    
    //fill an STL container of keys of removed muons
@@ -317,21 +321,21 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
    edm::ValueMap<bool>::Filler filler(*valMap);
    filler.insert(cleanedJetsRefProd, muonTagDecisions.begin(), muonTagDecisions.end());
    filler.fill();
-   iEvent.put(valMap);
+   iEvent.put(valMap, "valMap" );
 
    //fill the value map of removed muon refs for each cleaned jet
    std::auto_ptr<edm::ValueMap<MuonRefVector> > muonValMap(new edm::ValueMap<MuonRefVector>());
    edm::ValueMap<MuonRefVector>::Filler muonFiller(*muonValMap);
    muonFiller.insert(cleanedJetsRefProd, removedMuonMap.begin(), removedMuonMap.end());
    muonFiller.fill();
-   iEvent.put(muonValMap);
+   iEvent.put(muonValMap, "muonValMap" );
 
    //fill the value map of old jet refs for each cleaned jet
    std::auto_ptr<edm::ValueMap<PFJetRef> > jetValMap(new edm::ValueMap<PFJetRef>());
    edm::ValueMap<PFJetRef>::Filler jetFiller(*jetValMap);
    jetFiller.insert(cleanedJetsRefProd, oldJets.begin(), oldJets.end());
    jetFiller.fill();
-   iEvent.put(jetValMap);
+   iEvent.put(jetValMap, "jetValMap" );
 
    //put the soft-muon-free PF cands into the event
    iEvent.put(PFCandsExcludingSoftMuons);
@@ -342,7 +346,19 @@ CleanJets::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 void 
 CleanJets::beginJob()
 {
-  out_ = new TFile(outFileName_.c_str(), "RECREATE");
+  if (debug_) out_ = new TFile(outFileName_.c_str(), "RECREATE");
+
+  NMu_= new TH1F("NMu", ";Number of muons;", 7, -.5, 6.5);
+  MuEnergy_= new TH1F("MuEnergy", ";Muon p_{T} (GeV);", 50, -.5, 50);
+  DiffJetEvsMuonE_ = new TH2F("DiffJetEvsMuonE", 
+			      ";E_{uncleaned jet} - E_{cleaned jet} (GeV);E_{#mu} (GeV)", 
+			      50, 0, 50, 50, 0, 50);
+  JetEtavsMuEta_ = new TH2F("JetEtavsMuEta", ";#eta_{jet};#eta_{#mu}", 20, -5, 5, 20, -5, 5);
+  JetConstBeforevsAfter_ = 
+    new TH2F("JetConstBeforevsAfter", 
+	     ";No. uncleaned jet constituents;No. cleaned jet constituents", 20, 0, 20, 20, 0, 20);
+  DiffConstituents_= new TH1F("DiffConstituents", ";N_{const}(uncleaned) - N_{const}(cleaned);", 
+			      8, -1.5, 6.5);
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
@@ -350,7 +366,36 @@ void
 CleanJets::endJob()
 {
 
-  out_->cd();
+  if (debug_) {
+
+    out_->cd();
+
+    TCanvas NMuCanvas_("NMuCanvas","",600,600);
+    TCanvas MuEnergyCanvas_("MuEnergyCanvas","",600,600);
+    TCanvas DiffJetEvsMuonECanvas_("DiffJetEvsMuonECanvas","",600,600);
+    TCanvas JetEtavsMuEtaCanvas_("JetEtavsMuEtaCanvas","",600,600);
+    TCanvas JetConstBeforevsAfterCanvas_("JetConstBeforevsAfterCanvas","",600,600);
+    TCanvas DiffConstituentsCanvas_("DiffConstituentsCanvas","",600,600);
+
+    Common::draw1DHistograms(NMuCanvas_, NMu_);
+    Common::draw1DHistograms(MuEnergyCanvas_, MuEnergy_);
+    Common::draw1DHistograms(DiffConstituentsCanvas_, DiffConstituents_);
+
+    Common::draw2DHistograms(DiffJetEvsMuonECanvas_, DiffJetEvsMuonE_);
+    Common::draw2DHistograms(JetEtavsMuEtaCanvas_, JetEtavsMuEta_);
+    Common::draw2DHistograms(JetConstBeforevsAfterCanvas_, JetConstBeforevsAfter_);
+
+    NMuCanvas_.Write();
+    MuEnergyCanvas_.Write();
+    DiffJetEvsMuonECanvas_.Write();
+    JetEtavsMuEtaCanvas_.Write();
+    JetConstBeforevsAfterCanvas_.Write();
+    DiffConstituentsCanvas_.Write();
+    out_->Write();
+    out_->Close();
+
+  }
+
 }
 
 // ------------ method called when starting to processes a run  ------------
