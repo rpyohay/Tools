@@ -59,20 +59,20 @@ private:
   // ----------member data ---------------------------
 
   //input tag for base gen particle collection
-  edm::InputTag genParticleTag_;
+  edm::EDGetTokenT<reco::GenParticleCollection>  genParticleTag_;
 
   /*input tag for gen particle collection to match
     count on the user to pass in a collection that will not lead to the same reco object being 
     matched to multiple different gen objects
     for example, if the input object is a boosted di-tau pair, only 1 member of the pair should be 
     in the input collection*/
-  edm::InputTag selectedGenParticleTag_;
+  edm::EDGetTokenT<reco::GenParticleRefVector>  selectedGenParticleTag_;
 
   //input tag for reco object collection
-  edm::InputTag recoObjTag_;
+  edm::EDGetTokenT<edm::RefVector<std::vector<reco::PFTau> > > recoObjTag_;
 
   //input tag for base reco object collection
-  edm::InputTag baseRecoObjTag_;
+  edm::EDGetTokenT<std::vector<reco::PFTau> >  baseRecoObjTag_;
 
   //set of parameters for GenTauDecayID class
   edm::ParameterSet genTauDecayIDPSet_;
@@ -106,10 +106,10 @@ private:
 // constructors and destructor
 //
 TauMatchedRecoObjectProducer::TauMatchedRecoObjectProducer(const edm::ParameterSet& iConfig) :
-  genParticleTag_(iConfig.getParameter<edm::InputTag>("genParticleTag")),
-  selectedGenParticleTag_(iConfig.getParameter<edm::InputTag>("selectedGenParticleTag")),
-  recoObjTag_(iConfig.getParameter<edm::InputTag>("recoObjTag")),
-  baseRecoObjTag_(iConfig.getParameter<edm::InputTag>("baseRecoObjTag")),
+  genParticleTag_(consumes<reco::GenParticleCollection>(iConfig.getParameter<edm::InputTag>("genParticleTag"))),
+  selectedGenParticleTag_(consumes<reco::GenParticleRefVector>(iConfig.getParameter<edm::InputTag>("selectedGenParticleTag"))),
+  recoObjTag_(consumes<edm::RefVector<std::vector<reco::PFTau> > >(iConfig.getParameter<edm::InputTag>("recoObjTag"))),
+  baseRecoObjTag_(consumes<std::vector<reco::PFTau> >(iConfig.getParameter<edm::InputTag>("baseRecoObjTag"))),
   genTauDecayIDPSet_(iConfig.getParameter<edm::ParameterSet>("genTauDecayIDPSet")),
   applyPTCuts_(iConfig.getParameter<bool>("applyPTCuts")),
   countKShort_(iConfig.getParameter<bool>("countKShort")),
@@ -148,22 +148,21 @@ TauMatchedRecoObjectProducer::~TauMatchedRecoObjectProducer()
 // ------------ method called to produce the data  ------------
 bool TauMatchedRecoObjectProducer::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-  std::cout << "<-------------------New TauMatchedRecoObjectProducer--------------------------->" << std::endl;
   //get base gen particles
   edm::Handle<reco::GenParticleCollection> pGenParticles;
-  iEvent.getByLabel(genParticleTag_, pGenParticles);
+  iEvent.getByToken(genParticleTag_, pGenParticles);
 
   //get selected gen particles
   edm::Handle<reco::GenParticleRefVector> pSelectedGenParticles;
-  iEvent.getByLabel(selectedGenParticleTag_, pSelectedGenParticles);
+  iEvent.getByToken(selectedGenParticleTag_, pSelectedGenParticles);
 
   //get reco object collection
   edm::Handle<edm::RefVector<std::vector<reco::PFTau> > > pRecoObjs;
-  iEvent.getByLabel(recoObjTag_, pRecoObjs);
+  iEvent.getByToken(recoObjTag_, pRecoObjs);
 
   //get base reco object collection
   edm::Handle<std::vector<reco::PFTau> > pBaseRecoObjs;
-  iEvent.getByLabel(baseRecoObjTag_, pBaseRecoObjs);
+  iEvent.getByToken(baseRecoObjTag_, pBaseRecoObjs);
 
   //fill STL container of pointers to reco objects
   std::vector<reco::PFTau*> recoObjPtrs;
@@ -244,14 +243,10 @@ bool TauMatchedRecoObjectProducer::filter(edm::Event& iEvent, const edm::EventSe
 //	  std::cout << "\tRecoTau->pt= " << RecoTau->pt() << "  \tiRecoObj->pt= " << iRecoObj->pt() << "  \tdRTaus= " << dRTaus << std::endl;
           if (dRTaus < .1 && abs(iRecoObj->pt() - RecoTau->pt() ) < 1)
           {
-std::cout << "\t\titer= " << iter << "  iRecoObj - SetOfTaus->begin()= " <<  iRecoObj - SetOfTaus->begin() << std::endl;
 std::cout << "\t\t<-------FOUND IN SetOfTaus------------>" << std::endl;
             genMatchedRecoObjs_Matched[iter] = 1;
-std::cout << "check1" << std::endl;
-	    std::pair<reco::PFTau::hadronicDecayMode, GenTauDecayID::DecayType> pair = iGenObj->tauDecayType(applyPTCuts_, countKShort_);
-std::cout << "check2" << std::endl;
+	    const std::pair<reco::PFTau::hadronicDecayMode, GenTauDecayID::DecayType> pair = iGenObj->tauDecayType(applyPTCuts_, countKShort_);
             genMatchedRecoObjs_DecayMode[iter] = std::get<1>(pair);
-std::cout << "check2" << std::endl;
             genMatchedRecoObjs_VisiblePt[iter] = visibleGenP4.Pt();
           }//dRTaus
 	  iter++;
@@ -287,7 +282,6 @@ std::cout << "check2" << std::endl;
     iEvent.put(TauVisiblePtMap, "TauVisiblePtMap" );
 
   }//ifTauColl_
-  std::cout << "<-------------------End TauMatchedRecoObjectProducer--------------------------->" << std::endl;
   //stop processing if no gen-matched objects were found
   return foundGenMatchedRecoObject;
 }
@@ -295,10 +289,12 @@ std::cout << "check2" << std::endl;
 // ------------ method called once each job just before starting event loop  ------------
 void TauMatchedRecoObjectProducer::beginJob()
 {
+  std::cout << "<-------------------New TauMatchedRecoObjectProducer--------------------------->" << std::endl;
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void TauMatchedRecoObjectProducer::endJob() {
+  std::cout << "<-------------------End TauMatchedRecoObjectProducer--------------------------->" << std::endl;
 }
 
 // ------------ method called when starting to processes a run  ------------
