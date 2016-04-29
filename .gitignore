@@ -9,3 +9,5 @@
 *.log
 *.history
 *.__afs*
+*.pcm
+*.root
