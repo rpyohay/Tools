@@ -16,6 +16,15 @@ void minDR::deleteCandidate() { cand_ = NULL; }
 
 reco::Candidate* minDR::getCandidate() const { return cand_; }
 
+void minDRParticle::setParticle(const reco::Particle* cand)
+{
+  cand_ = const_cast<reco::Particle*>(cand);
+}
+
+void minDRParticle::deleteParticle() { cand_ = NULL; }
+
+reco::Particle* minDRParticle::getParticle() const { return cand_; }
+
 void maxM::setMuonJetMap(const edm::Handle<edm::ValueMap<reco::MuonRefVector> >* pMuonJetMap)
 {
   pMuonJetMap_ = const_cast<edm::Handle<edm::ValueMap<reco::MuonRefVector> >*>(pMuonJetMap);

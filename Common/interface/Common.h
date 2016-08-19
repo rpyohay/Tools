@@ -41,6 +41,28 @@ class minDR {
 
 };
 
+class minDRParticle {
+
+ public:
+
+  void setParticle(const reco::Particle*);
+
+  void deleteParticle();
+
+  reco::Particle* getParticle() const;
+
+  template<typename T>
+    bool operator()(const T* cand1, const T* cand2)
+    {
+      return (deltaR(*cand_, *cand1) < deltaR(*cand_, *cand2));
+    }
+
+ private:
+
+  reco::Particle* cand_;
+
+};
+
 class maxM {
 
  public:
@@ -118,6 +140,24 @@ class Common {
 	index = iMinElement - objs.begin();
       }
       comp.deleteCandidate();
+      return nearestObj;
+    }
+
+  template<typename T>
+    static const T* nearestObject(const reco::Particle& obj, const std::vector<T*>& objs, 
+				  int& index)
+    {
+      minDRParticle comp;
+      comp.setParticle(&obj);
+      typename std::vector<T*>::const_iterator iMinElement = 
+	min_element(objs.begin(), objs.end(), comp);
+      const T* nearestObj = NULL;
+      index = -1;
+      if (iMinElement != objs.end()) {
+	nearestObj = *iMinElement;
+	index = iMinElement - objs.begin();
+      }
+      comp.deleteParticle();
       return nearestObj;
     }
 
